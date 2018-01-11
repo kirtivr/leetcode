@@ -18,6 +18,9 @@ https://leetcode.com/submissions/detail/122622909/
 253 - Meeting rooms. https://leetcode.com/problems/meeting-rooms-ii/discuss/
 
 55 - Jump. Avoid recomputation.
+
+279 - Neat method.
 * Easy
 
 101 - Symmetric Tree
+169 - Majority element - voting method.

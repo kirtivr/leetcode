@@ -1,0 +1,23 @@
+from collections import defaultdict
+
+class Graph:
+    def __init__(self,vertices):
+        self.V = vertices
+        self.graph = defaultdict(list)
+
+    def addEdge(self,u,v):
+        self.graph[u].append(v)
+
+    def findParent(self,parent,i):
+        if parent[i] == -1:
+            return i
+
+        else:
+            return self.findParent(parent,parent[i])
+
+    def union(self,parent,x,y):
+        x_set = self.findParent(parent,x)
+        y_set = self.findParent(parent,y)
+
+        parent[x_set] = y_set
+    
