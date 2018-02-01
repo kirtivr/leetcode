@@ -4,7 +4,10 @@ class MyQueue(object):
         """
         Initialize your data structure here.
         """
-        self.stack = []
+        self.s1 = []
+        self.s2 = []
+        self.front = None
+        self.N = 0
 
     def push(self, x):
         """
@@ -12,33 +15,39 @@ class MyQueue(object):
         :type x: int
         :rtype: void
         """
-        self.stack.append(x)
-
+        if self.N == 0:
+            self.front = x
+            
+        self.s1.append(x)
+        self.N += 1
+        
     def pop(self):
         """
         Removes the element from in front of queue and returns that element.
         :rtype: int
         """
-        
 
+        if len(self.s2) == 0:
+            for i in range(self.N - 1):
+                self.s2.append(self.s1.pop())
+        self.N -= 1
+        x =  self.s2.pop()
+        if len(self.s2) > 0:
+            self.front = s2[-1]
+        else:
+            self.front = None
+        return x
+    
     def peek(self):
         """
         Get the front element.
         :rtype: int
         """
-        
-
+        return self.front
+    
     def empty(self):
         """
         Returns whether the queue is empty.
         :rtype: bool
         """
-        
-
-
-# Your MyQueue object will be instantiated and called as such:
-# obj = MyQueue()
-# obj.push(x)
-# param_2 = obj.pop()
-# param_3 = obj.peek()
-# param_4 = obj.empty()
+        return self.N == 0
