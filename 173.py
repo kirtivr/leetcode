@@ -10,22 +10,24 @@ class BSTIterator(object):
         """
         :type root: TreeNode
         """
+
         self.stk = [root]
         curr = root
         
-        while curr != None:
-            self.stk.append(curr.val)
-            
+        while curr and len(self.stk) > 0:
             while curr.left != None:
-                self.stk.append(curr.val)
                 curr = curr.left
-
+                self.stk.append(curr)
+            
+            print(curr.val)
+            
             if curr.right != None:
+                self.stk.append(curr.right)
                 curr = curr.right
             else:
                 curr = self.stk.pop()
-        
-            print(self.stk)
+            #for i in range(len(self.stk)):
+            #    print(self.stk[i].val)
         
     def hasNext(self):
         """
