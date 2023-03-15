@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+import time
+import pdb
+import sys
+import copy
+from typing import List, TypedDict
+
+if __name__ == '__main__':
+    x = Solution()
+    start = time.time()
+    print(x.minPathSum(grid))
+    end = time.time()
+    elapsed = end - start
+    print (f'time elapsed = {elapsed}')

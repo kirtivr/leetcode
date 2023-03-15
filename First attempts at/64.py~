@@ -1,0 +1,81 @@
+import heapq
+
+class Point:
+    def __init__(self, x: int, y: int):
+        self.row = x
+        self.col = y
+
+    def __repr__(self):
+        return f'row = {self.row} column = {self.column}'
+
+class Visited(TypedDict):
+    key: Point
+    val: value
+
+class HeapElement:
+    def __init__(self, point: Point, path_sum: int):
+        self.point = point
+        self.path_sum = self.path_sum
+
+    def __repr__(self):
+        return f'Point {self.point} path sum {self.path_sum}'
+
+    def __lt__(self, other):
+        return self.path_sum < other.path_sum
+
+class Solution:
+    def searchMatrixForTheAnswer(self, grid: List[List[int]], point: Point, visited: Visited, pq: List[int]) -> int:
+        if point in visited:
+        while len(pq) > 0:
+            # Pop an element from the priority queue.
+            popped = heap1.heappop(pq)
+            next_p = popped.point
+
+            if next_p in visited:
+                # cycle, avoid this path.
+                continue
+
+            # We have not explored the neighbors for next_p yet.
+            neighbors = [None, None, None, None]
+
+            right_x = next_p.x
+            right_y = None if next_p.y == len(grid[0]) - 1 else next_p.y + 1
+            if right_x is not None and right_y is not None:
+                neighbors[0].row = right_x
+                neighbors[0].col = right_y
+
+            left_x = left_p.x
+            left_y = None if next_p.y == 0 else left_p.y - 1
+            if left_x is not None and left_y is not None:
+                neighbors[1].row = left_x
+                neighbors[1].col = left_y
+
+
+            down_x = None if next_p.x == len(grid) - 1 else next_p.x + 1
+            down_y = next_p.y
+            if down_x is not None and down_y is not None:
+                neighbors[2].row = down_x
+                neighbors[2].col = down_y
+
+
+            up_x = None if next_p.x == 0 else next_p.x - 1
+            up_y = next_p.y
+            if up_x is not None and up_y is not None:
+                neighbors[3].row = up_x
+                neighbors[3].col = up_y
+
+
+            for neighbor in neighbors:
+                if neighbor == None:
+                    continue
+                
+        
+    def minPathSum(self, grid: List[List[int]]) -> int:
+        visited = Visited()
+        if not grid:
+            return 0
+        # Start from top left
+        point = Point(len(grid) - 1, 0)
+        heap_list = [HeapElement(point, grid[point.x][pont.y])]
+        heapq.heapify(heap_list)
+        return self.searchMatrixForTheAnswer(grid, point, visited, heap_list)
