@@ -7,7 +7,6 @@ def median(A, B):
 
 
     # A is lesser than eq B in size
-    
     imin, imax, half_len = 0, m, (m + n + 1) / 2
 
     # imin, imax track the dimenstions of smaller array

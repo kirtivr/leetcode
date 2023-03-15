@@ -1,45 +1,78 @@
 class Solution(object):
+    def median(self, L, S):
+        L_len, S_len = len(L), len(S)
+        if S_len > L_len:
+            L, S, L_len, S_len = S, L, S_len, L_len
 
-    def median(self, A, B):
-        m, n = len(A), len(B)
-        if m > n:
-            A, B, m, n = B, A, n, m
-        if n == 0:
-            raise ValueError
+        s_low, s_high, l_low, l_high = 0, S_len, 0, L_len
 
-        # A is lesser than eq B in size
-        
-        imin, imax, half_len = 0, m, (m + n + 1) // 2
+        med_i = ((S_len + L_len)//2) - 1 # 0 index match.
+        s_i = (s_low + s_high)//2
+        l_i = (l_low + l_high)//2
 
-        # imin, imax track the dimenstions of smaller array
-    
-        while imin <= imax:
-            i = (imin + imax) // 2
-            # i stores mid point of smaller array
-            j = half_len - i
-            # j is the difference of median point in combined array and current value of i
-            
-            if i < m and B[j-1] > A[i]:
-                # i is too small, must increase it
-                imin = i + 1
-            elif i > 0 and A[i-1] > B[j]:
-                # i is too big, must decrease it
-                imax = i - 1
+        # Establish a window of length med_i between L and S.
+        # Later we will adjust the indices of the window as necessary.
+        while s_i + l_i != med_i:
+            print(f'si = {s_i} li = {l_i} median = {med_i}')
+            diff = abs(med_i - (s_i + l_i))
+            if s_i + l_i < med_i:
+                if S[s_i] <= L[l_i] and s_i < S_len - 1:
+                    s_i = min(S_len - 1, s_i + diff)
+                else:
+                    l_i = min(L_len - 1, l_i + diff)
             else:
-                # i is perfect
+                if S[s_i] >= L[l_i] and s_i != 0:
+                    s_i = max(0, s_i - diff)
+                else:
+                    l_i = max(0, l_i - diff)
 
-                if i == 0: max_of_left = B[j-1]
-                elif j == 0: max_of_left = A[i-1]
-                else: max_of_left = max(A[i-1], B[j-1])
+        print(f'here')
+        # We have an established window of length med_i + 2 (1 indexed).
+        # Adjust s_i and l_i until invariants hold.
+        s_i_jmp = 2
+        l_i_jmp = 2
+        while True:
+            # Maybe move S to the right.
+            if S[s_i] < L[l_i]:
+                if s_i == S_len - 1:
+                    break
+                if S[s_i + 1] < L[l_i]:
+                    s_i = max(S_len - 1, s_i + s_i_jmp)
+                    s_i_jmp *= 2
+                    l_i_jmp = 2
+                else:
+                    break
+            elif L[l_i] < S[s_i]:
+                if l_i == L_len - 1:
+                    break
+                if L[l_i + 1] < S[s_i]:
+                    l_i = max(L_len - 1, l_i + l_i_jmp)
+                    l_i_jmp *= 2
+                    s_i_jmp = 2
+                else:
+                    break
 
-                if (m + n) % 2 == 1:
-                    return max_of_left
+        print(f'si = {s_i} li = {l_i} S = {S[:s_i + 1]} L = {L[:l_i + 1]}')
 
-                if i == m: min_of_right = B[j]
-                elif j == n: min_of_right = A[i]
-                else: min_of_right = min(A[i], B[j])
+        median = 0
+        if (med_i + 1) % 2 == 0:
+            if L[l_i] > S[s_i]:
+                median = L[l_i]
+                if l_i == 0:
+                    median += S[s_i]
+                else:
+                    median = median + S[s_i] if S[s_i] > L[l_i - 1] else L[l_i - 1]
+            else:
+                median = S[s_i]
+                if s_i == 0:
+                    median += L[l_i]
+                else:
+                    median = median + L[l_i] if L[l_i] > S[s_i - 1] else S[s_i - 1]
+            median = median / 2
+        else:
+            median = L[l_i] if L[l_i] > S[s_i] else S[s_i]
 
-                return (max_of_left + min_of_right) / 2.0
+        return median
 
     def findMedianSortedArrays(self, nums1, nums2):
         """
@@ -47,10 +80,13 @@ class Solution(object):
         :type nums2: List[int]
         :rtype: float
         """
-
         return self.median(nums1,nums2)
         
 if __name__ == '__main__':
     nums1 = [10,20,30,40,50]
     nums2 = [1,15,35,45,55,65]
+    nums1 = [1, 2]
+    nums2 = [3, 4]
+    nums1 = [0, 0]
+    nums2 = [0, 0]
     print(Solution().findMedianSortedArrays(nums1,nums2))

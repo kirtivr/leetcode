@@ -16,7 +16,70 @@ class IntervalNode:
         self.count = 1
 
     def __repr__(self) -> str:
-        return f'start: {self.start} end: {self.end}'
+        return f'start: {self.start} end: {self.end} count: {self.count}'
+
+def PrintTree(root: Optional[IntervalNode]):
+    if root == None:
+        print("", end = "")
+        return
+
+    print(f'(({root})', end = " ")
+
+    PrintTree(root.left)
+    PrintTree(root.right)
+    print(f')', end = " ")
+
+
+'''
+Philosophy: Lay down markers every time a range starts. Remove the marker when the range ends.
+Iterate through the map (up to 1000 entries) to find any range with equal to 3 markers.
+Remove the just added range.
+C++ ordered map allows this to be done easily.
+
+class SimpleSolution:
+  
+    map<int, int> mp;
+    
+    MyCalendarTwo() {
+        
+    }
+    
+    bool book(int start, int end) {
+        
+        // increment the value of start 
+        
+        mp[start]++;
+        
+        // decrement the value of end
+        
+        mp[end]--;
+        
+        // traverse over map, if at any any moment we get count > 2, then we have found a triple booking
+        
+        int count = 0;
+        
+        for(auto x : mp)
+        {
+            count += x.second;
+            
+            if(count > 2)
+                break;
+        }
+        
+        // remove the inserted interval from map
+        
+        if(count > 2)
+        {
+            mp[start]--;
+            
+            mp[end]++;
+            
+            return false;
+        }
+        
+        return true;
+    }
+'''
 
 class MyCalendarTwo:
     def findParentNode(self, start, end):
@@ -82,62 +145,114 @@ class MyCalendarTwo:
         ov = None
         ri = None
 
-        # Left intersection.
+        # Left intersection. Note we are ignoring the outlying parts of the incoming element.
         if start <= ns and end > ns:
             # Intersection starts from 'ns' and ends at the min of end and ne.
             ov = (ns, min(ne, end))
-            li = (start, ns)
-            ri = (min(ne, end), max(ne, end))
+            li = None
+            if ne > end:
+                ri = (end, ne) # Belongs to node.
 
+            if ri and ri[0] == ri[1]:
+                ri = None
+            #print(f'node {node} (start, end) = {(start, end)}changed to have end {ov[1]}')
+            if ov[0] == ov[1]:
+                ov = None
             node.end = ov[1]
             node.count += 1
 
         # Right intersection.
         elif start > ns and ne > start:
             ov = (start, min(ne, end))
-            li = (ns, start)
-            ri = (min(ne, end), max(ne, end))
+            li = (ns, start) # Belongs to node
+            if ne > end:
+                ri = (end, ne) # Belongs to node.
 
+            if li[0] == li[1]:
+                li = None
+            if ri and ri[0] == ri[1]:
+                ri = None
+            if ov[0] == ov[1]:
+                ov = None
+            #print(f'node {node} changed to have start {ov[0]} and end {ov[1]}')
             node.start = ov[0]
             node.end = ov[1]
             node.count += 1
 
         return (li, ov, ri)
 
+    def subtractOverlappingsFromRangeAndAddToIntersections(self, start, end, overlappings, intersections):
+        overlappings.sort()
+        #print(f'incoming intersections = {intersections}')
+        st = start
+        idx = 0
+        while st < end and idx < len(overlappings):
+            if st < overlappings[idx][0]:
+                # We have a range.
+                intersections.append((st, overlappings[idx][0]))
+            st = overlappings[idx][1]
+            idx += 1
+
+        if st < end:
+            intersections.append((st, end))
+        #print(f'outgoing intersections = {intersections}')
+
     def findIntersectionsWithTree(self, start, end):
+        #print(f'\n\ninput start = {start} end = {end}')
         if self.head == None:
-            return (False, [])
+            return (False, [], False)
 
-        intersections = []
         q = [self.head]
-
         while len(q) > 0:
             curr = q.pop(0)
             if curr.count >= 2 and self.isIntersecting(curr, start, end):
-                return (True, [])
+                #print(f'intersected with {curr}')
+                return (True, [], True)
+            if curr.left is not None:
+                q.append(curr.left)
+            if curr.right is not None:
+                q.append(curr.right)
+        
+        q = [self.head]
+        intersections = []
+        overlappings = []
+        while len(q) > 0:
+            curr = q.pop(0)
             (left_nonoverlapping, overlapping, right_nonoverlapping) = self.intersectAndUpdateNode(curr, start, end)
             if left_nonoverlapping:
-                intersections.append(left_nonoverlapping)
+                    #print(f'left non overlapping = {left_nonoverlapping}')
+                    intersections.append(left_nonoverlapping)
+
             if right_nonoverlapping:
+                #print(f'right non overlapping = {right_nonoverlapping}')
                 intersections.append(right_nonoverlapping)
 
+            if overlapping:
+                overlappings.append(overlapping)
             if curr.left is not None:
                 q.append(curr.left)
             if curr.right is not None:
                 q.append(curr.right)
 
-        return (False, intersections)
+        #PrintTree(self.head)
+        #print(f'tree intersections = {intersections} overlapping = {overlappings}')
+        self.subtractOverlappingsFromRangeAndAddToIntersections(start, end, overlappings, intersections)
+        #print(f'intersections = {intersections}')
+        return (False, intersections, True if overlappings else False)
     
     def updateSegment(self, intersections):
         for i in intersections:
+            #print()
+            #print(f'adding node {i}')
             (current, overlaps, isLeft) = self.findParentNode(i[0], i[1])
+            #print(f'parent node is {current} isLeft = {isLeft}')
             self.AddDisjointNode(current, isLeft, i[0], i[1])
-
+        #PrintTree(self.head)
     def __init__(self):
         self.head = None
 
     def book(self, start: int, end: int) -> bool:
-        (triple_booked, intersections) = self.findIntersectionsWithTree(start, end)
+        (triple_booked, intersections, overlapped) = self.findIntersectionsWithTree(start, end)
 
         if triple_booked:
             #print('triple booked')
@@ -146,19 +261,28 @@ class MyCalendarTwo:
             if intersections:
                 #print(f'intersections = {intersections}')
                 self.updateSegment(intersections)
-            else:
+            elif not overlapped:
                 #print(f'adding {intersections}')
                 self.updateSegment([(start, end)])
             return True
 
 if __name__ == '__main__':
     start = time.time()
+    #expected = [None,True,True,True,True,False,True,False,False,True,True,True,False,False,False,True,False,False,True,False,False,False,False,False,False,False,False,False,False,False,False]
+    expected = [None,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,False,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,False,True,False,False,True,True,True,True,False,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,False,True,True,True,False,True,False,True,True,True,True,True,True,True,False,False,True,False,True,True,True,True,True,True,True,True,True,True,False,False,False,False,True,True,False,True,True,True,False,True,True,False,False,True,False,True,False,True,False,True,True,False,False,False,True,True,True,True,False,False,False,False,True,True,False,True,True,False,False,True,True,False,True,True,True,True,True,True,False,False,True,False,True,True,False,False,True,True,True,False,True,True,True,False,True,False,True,False,False,False,False,True,False,True,False,True,True,True,False,False,True,True,False,True,False,False,True,False,False,False,False,True,True,True,False,True,True,False,True,False,False,False,False,False,True,False,False,True,False,False,False,True,True,False,False,True,False,False,True,False,False,False,True,False,False,False,False,True,True,True,False,False,False,False,False,False,False,True,False,True,False,False,False,True,False,False,True,False,False,False,False,False,False,False,False,True,False,True,False,True,True,False,False,False,True,False,False,False,False,True,False,True,False,False,False,False,False,False,False,True,True,True,False,False,False,False,False,False,False,False,False,True,False,False,False,False,False,False,True,True,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,True,False,False,False,False,False,True,False,True,True,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,True,False,False,False,True,False,False,False,False,False,False,False,False,False,False,False,True,False,False,False,False,False,True,False,False,False,False,False,False,False,False,True,True,False,False,False,False]
+    expected = [None,True,True,True,True,True,False,True,True,True,False,True,False,False,False,False,False,True,True,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,True,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False]
     with open('731_tc.text', 'r') as f:
         edges = ast.literal_eval(f.readline())
+        #edges = edges[:18]
         #print(edges)
         cal = MyCalendarTwo()
+        idx = 1
+        print(f'size of test cases = {len(edges)}')
         for edge in edges[1:]:
-            print(cal.book(edge[0], edge[1]))
+            res = cal.book(edge[0], edge[1])
+            if res != expected[idx]:
+                print(f'failed test case number {idx} {edge} expected: {expected[idx]} answer: {res}')
+            idx += 1
     end = time.time()
     elapsed = end - start
     print(f'time elapsed: {elapsed}')
