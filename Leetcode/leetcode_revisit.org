@@ -1,0 +1,29 @@
+* Hard
+138 - copy list with random pointer.
+297 - Serialize, deserialize binary tree
+4 - Merge of two sorted arrays. Formula based solution. How to frame a formula from the problem.
+32 - longest valid parenthesis - stack method.
+124 - Max path sum
+* Medium
+42 - Trapping rain water
+https://leetcode.com/problems/trapping-rain-water/description/
+
+525 - Contiguous array
+https://leetcode.com/submissions/detail/122622909/
+
+62 -Unique Paths
+
+11 - Container with most water.
+
+253 - Meeting rooms. https://leetcode.com/problems/meeting-rooms-ii/discuss/
+
+55 - Jump. Avoid recomputation.
+
+279 - Neat method.
+
+209_cc - 2 pointers method.
+
+* Easy
+
+101 - Symmetric Tree
+169 - Majority element - voting method.
