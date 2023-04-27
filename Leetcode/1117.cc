@@ -5,7 +5,6 @@
 #include <deque>
 #include <mutex>
 #include <vector>
-#include <semaphore>
 
 using namespace std;
 
@@ -47,12 +46,16 @@ public:
         auto cleanup = [&]() {
             // Release oxygen, and other hydrogen, notify ro, rh condition variable.
             //std::cout << "called cleanup from hydrogen" << endl;
-            hs.release();
-            os.release();
             {
                 std::unique_lock<std::mutex> ul(pm);
-                release_oxygen += 1;
-                release_hydrogen += 1;
+                sp.wait(ul, [&] {
+                    auto cond = release_oxygen == 0 && release_hydrogen == 0;
+                    if (cond) {
+                        release_oxygen += 1;
+                        release_hydrogen += 1;
+                    }
+                    return cond;
+                });
             }
             rh.notify_one();
             ro.notify_one();
@@ -61,8 +64,9 @@ public:
             if (!first) {
                 std::unique_lock<std::mutex> ul(pm);
                 rh.wait(ul, [&]() {
-                    auto cond = release_hydrogen > 0 && hs.try_acquire();
+                    auto cond = release_hydrogen > 0;
                     if (cond) {
+                        cout << "releasing hydrogen" << release_hydrogen << endl;
                         release_hydrogen--;
 //                        cout << "releasing hydrogen" <<endl;
                     }
@@ -87,11 +91,22 @@ public:
                 continue;
             }
             //cout << "hydrogen, H2O acquired" << endl;
+            {   
+                std::unique_lock<std::mutex> pml(pm);
+                sp.wait(pml, [&]() {
+                    return released % 3 == 0;
+                });
+            }
             cleanup();
             break;
         }
         // releaseHydrogen() outputs "H". Do not change or remove this line.
         releaseHydrogen();
+        {
+            std::unique_lock<std::mutex> pml(pm);
+            released += 1;
+        }
+        sp.notify_all();
     }
 
     void oxygen(function<void()> releaseOxygen) {
@@ -99,11 +114,15 @@ public:
         bool first = true;
         auto cleanup = [&]() {
             // Release 2 hydrogen, and notify rh condition variable.
-            hs.release();
-            hs.release();
-            {
+            {   
                 std::unique_lock<std::mutex> ul(pm);
-                release_hydrogen += 2;
+                sp.wait(ul, [&] {
+                    auto cond = release_oxygen == 0 && release_hydrogen == 0;
+                    if (cond) {
+                        release_hydrogen += 2;
+                    }
+                    return cond;
+                });
             }
             rh.notify_one();
             rh.notify_one();
@@ -112,12 +131,13 @@ public:
             if (!first) {
                 std::unique_lock<std::mutex> ul(pm);
                 ro.wait(ul, [&]() {
-                    auto cond = release_oxygen > 0 && os.try_acquire();
+                    auto cond = release_oxygen > 0;
                     if (cond) {
+                        cout << "releasing oxygen" << release_oxygen << endl;
                         release_oxygen--;
                     }
                     return cond;
-                    });
+                });
                 break;
             } else {
                 first = false;
@@ -137,11 +157,22 @@ public:
                 continue;
             }
             //cout << "oxygen, H2O acquired" << endl;
+            {   
+                std::unique_lock<std::mutex> pml(pm);
+                sp.wait(pml, [&]() {
+                    return released % 3 == 0;
+                });
+            }
             cleanup();
             break;
         }
         // releaseOxygen() outputs "O". Do not change or remove this line.
         releaseOxygen();
+        {
+            std::unique_lock<std::mutex> pml(pm);
+            released += 1;
+        }
+        sp.notify_all();
     }
 
 private:
@@ -151,9 +182,10 @@ private:
     int release_hydrogen = 0;
     std::condition_variable ro;
     int release_oxygen = 0;
+    std::condition_variable sp;
+    int released = 0;
     Semaphore hs;
     Semaphore os;
-    std::condition_variable releaseThreads;
 };
 
 
@@ -163,16 +195,16 @@ int main() {
     H2O h2o;
     auto releaseHydrogen = [&] () {
         h2o.hydrogen([&] () {
-            std::cout << "H";
+            //std::cout << "H";
         });
     };
     auto releaseOxygen = [&] () {
         h2o.oxygen([&] () {
-            std::cout << "O";
+            //std::cout << "O";
         });
     };
 
-    std::string input = "HOHOHH";
+    std::string input = "HHOHHOOOOHHHHHH";
     std::vector<std::thread> threads(sizeof(input));
 
     int i = 0;
