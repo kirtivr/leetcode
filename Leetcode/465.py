@@ -73,22 +73,18 @@ class Solution:
             for cycle in cycles:
                 # A cycle is a collection of 2 or more nodes that are connected.
                 N = len(cycle) - 1
-                start = 0
                 min_weight = float("inf")
                 for i in range(N):
-                    v1 = cycle[start]
-                    v2 = cycle[start + 1]
-
+                    v1 = cycle[i]
+                    v2 = cycle[i + 1]
                     min_weight = min(min_weight, weights[(v1, v2)])
-                    start += 1
 
                 print(f'minimum weight for cycle {cycle} is {min_weight}')
 
-                start = 0
                 for i in range(N):
-                    v1 = cycle[start]
-                    v2 = cycle[start + 1]
-
+                    v1 = cycle[i]
+                    v2 = cycle[i + 1]
+                    # Adjust weights.
                     weight = weights[(v1, v2)] - min_weight
                     print(f'v1 = {v1} v2 = {v2} weights = {weights[(v1, v2)]} mw = {min_weight} weight = {weight}')
                     if weight == 0:
@@ -97,7 +93,6 @@ class Solution:
                         connections[v1].remove(v2)
                     else:
                         weights[(v1, v2)] = weight
-                    start += 1                
 
         # All remaining connections are non-cyclic.
         debts = [0 for i in range(num_v)]
@@ -107,30 +102,52 @@ class Solution:
 
         print(connections)
         print(weights)
+
+        # Non cyclic case.
+        # A -> B $30
+        # B -> C $10
+        # B -> D $10
+        # B -> E $10
+        def updateWeights(connections, taking_over, tof, weights):
+            print(f'taking over = {taking_over} from = {tof} connections[from] = {connections[tof]}')
+            for tofc in connections[tof]:
+                if (taking_over, tofc) in weights:
+                    weights[(taking_over, tofc)] += weights[(tof, tofc)]
+                else:
+                    weights[(taking_over, tofc)] = weights[(tof, tofc)]
+                del weights[(tof, tofc)]
+
+        def simplifyDebts(connections, u, v, weights, debts):
+            if debts[v] <= weights[(u, v)]:
+                connections[u].remove(v)
+            # Adjusts debts, weights.
+            weights[(u, v)] -= debts[v]
+            debts[v] = 0
+            # Update connections[u] and weights[u, (u, connection of v)]
+            vc = connections[v]
+            connections[u] = connections[u].union(vc)
+            updateWeights(connections, u, v, weights)
+            connections[v] = set()
+
+        # A -> B can be eliminated, and A can pay C, D, E.
         for u in range(num_v):
-            while True:
-                added = False
+            restart = True
+            while restart:
+                # u can pay off all of v's debts.
+                #pdb.set_trace()
+                restart = False
                 ucc = set(connections[u])
                 for v in ucc:
-                    # u can pay off all of v's debts.
-                    #pdb.set_trace()
                     if debts[v] > 0 and debts[v] <= weights[(u, v)]:
-                        weights[(u, v)] -= debts[v]
-                        debts[v] = 0
-                        vc = connections[v]
-                        connections[v] = set()
-                        if debts[v] == weights[(u, v)]:
-                            connections[u].remove(v)
-                        if len(vc) > 0:
-                            added = True
-                        connections[u] = connections[u].union(vc)
-                if not added:
-                    break
-        print(connections)
+                        simplifyDebts(connections, u, v, weights, debts)
+                        restart = True
 
+        #print(connections)
+        print(weights)
         num_c = 0
+        owed = set()
         for u in range(num_v):
-            num_c += len(connections[u])
+            owed.add(v for v in connections[u])
 
         return num_c
 
