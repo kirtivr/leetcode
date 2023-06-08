@@ -1,0 +1,14 @@
+["FileSystem","mkdir","ls","ls","mkdir","ls","ls","addContentToFile","ls","ls","ls"]
+[[],["/goowmfn"],["/goowmfn"],["/"],["/z"],["/"],["/"],["/goowmfn/c","shetopcy"],["/z"],["/goowmfn/c"],["/goowmfn"]]
+
+["FileSystem","mkdir","ls","ls","mkdir","ls","ls","addContentToFile","readContentFromFile","ls","readContentFromFile"]
+[[],["/zijzllb"],["/"],["/zijzllb"],["/r"],["/"],["/r"],["/zijzllb/hfktg","d"],["/zijzllb/hfktg"],["/"],["/zijzllb/hfktg"]]
+
+["FileSystem", "ls", "mkdir", "addContentToFile", "ls", "readContentFromFile"]
+[[], ["/"], ["/a/b/c"], ["/a/b/c/d", "hello"], ["/"], ["/a/b/c/d"]]
+
+["FileSystem", "ls", "mkdir", "ls", "ls", "ls", "ls"]
+[[], ["/"], ["/a/b/c/d"], ["/"], ["/a/b"], ["/a/b/c"], ["/a/b/c/d"]]
+
+["FileSystem", "ls", "mkdir", "addContentToFile", "ls", "readContentFromFile"]
+[[], ["/"], ["/a/b/c"], ["/a/b/c/d", "hello"], ["/"], ["/a/b/c/d"]]

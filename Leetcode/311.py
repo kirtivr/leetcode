@@ -32,8 +32,8 @@ class Solution(object):
                     Bx.append((row,i))
                 row = row + 1
                 
-        print(Ax)
-        print(Bx)
+        #print(Ax)
+        #print(Bx)
         for row1,col1 in Ax:
             for row2,col2 in Bx:
                 if col1 == row2:
