@@ -1,5 +1,9 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
+from heapq import heappop, heappush, heapify
 import pdb
+import ast
+import sys
+from functools import cmp_to_key
 import time
 
 # Definition for singly-linked list.
@@ -8,10 +12,14 @@ class ListNode:
         self.val = val
         self.next = next
 
+    def __repr__(self):
+        return str(self.val)
+
 def PrintList(head: Optional[ListNode]):
     while head is not None:
         print(head.val, end = " ")
         head = head.next
+    print()
 
 def MakeNodes(input: List[int]):
     head = None
@@ -50,15 +58,11 @@ def ElementAt(head: Optional[ListNode], idx: int):
         head = head.next
     return None
 
-class Solution:
-    def partitionAndSort(self, head: Optional[ListNode]):
-        pass                
-
-if __name__ == '__main__':
+'''if __name__ == '__main__':
     x = Solution()
     start = time.time()
     nodes = MakeNodes([1, 2, 3, 4, 5])
     PrintList(nodes)
     end = time.time()
     elapsed = end - start
-    print(f'time elapsed: {elapsed}')
+    print(f'time elapsed: {elapsed}')'''

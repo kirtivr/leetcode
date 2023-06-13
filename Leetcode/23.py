@@ -1,4 +1,6 @@
 # Definition for singly-linked list.
+from python_linked_list_template import *
+
 
 import heapq
 
@@ -7,7 +9,7 @@ class ListNode(object):
         self.val = x
         self.next = None
 
-class Solution(object):
+class Solution2(object):
     def __init__(self):
         self.heap = []
 
