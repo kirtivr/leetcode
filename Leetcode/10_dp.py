@@ -1,5 +1,4 @@
 class Solution:
-
     def processString(self, s):
         N = len(s)
         new_str = []
