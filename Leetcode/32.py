@@ -1,84 +1,71 @@
+from typing import List, Optional, Tuple, Dict
+from heapq import heappop, heappush, heapify
+import pdb
+import ast
+import sys
+from functools import cmp_to_key
+import time
+
 class Solution:
     def longestValidParentheses(self, s):
         """
         :type s: str
         :rtype: int
         """
-
         table = {}
-        longest = 0
-        
-        def divide(current, i, j):
-            nonlocal longest
-            print(' i = '+str(i)+' j= '+str(j))
-            if i > j:
-                return
-            elif i == j:
-                table[i,j] = False
-                return
-            elif j - i + 1 == 2:
-                table[i,j] = (current[i] == "(" and current[j] == ")")
-            else:
-                mid = i + (j-i)//2
-                divide(current, i, mid)
-                divide(current, mid+1, j)
 
-                if (j-i+1)%2 != 0:
-                    table[i,j] = False
-                    return
-                
-                if (i+1,j-1) in table:
-                    print('op')
-                
-                if (i+1,j-1) in table and table[i+1,j-1] and current[i] == "(" and current[j] == ")":
-                    table[i,j] = True
-                else:
-                    table[i,j] = isValid(current[i:j+1])
+        for i in range(1, len(s)):
+            if s[i - 1] == '(' and s[i] == ')':
+                table[(i - 1, i)] = True
 
-            if table[i,j]:
-                longest = max(longest, j-i+1)
-                
-        def isValid(current):
-            stk = []
+        # Check intervals of size power of 2.
+        sz = []
+        power_of_2 = 4
+        while power_of_2 <= len(s):
+            sz.append(power_of_2)
+            power_of_2 *= 2
 
-            for k in range(len(current)):
-                ch = current[k]
-                
-                if ch == "(":
-                    stk.append(ch)
-                elif ch == ")":
-                    if len(stk) == 0 or stk.pop() != "(":
-                        return False
-            
-            return len(stk) == 0
+        if power_of_2 > len(s):
+            sz.append(power_of_2)
 
-        divide(s,0,len(s)-1)
+        for interval_size in sz:
+            # Process each divisible unit in chunks of interval_size and then merge.
+            for start in range(0, len(s), interval_size):
+                end = start + interval_size - 1
+                # Partition sizes can be:
+                # 1, ------, 1
+                # 2, ---------
+                # ....
+                # k, interval_size - k
+                # ...
+                # n - 2, 2
+                for partition_len in range(2, end, 2):
+                    print(f'interval size: {interval_size}, start = {start} end = {end} partition_len = {partition_len}')
+                    if (start, start + partition_len - 1) in table and (start + partition_len, end) in table:
+                        table[(start, end)] = True
+                        break
+
+                # Check the case where we have enclosing brackets.
+                k = 1
+                while k <= interval_size // 2:
+                    if s[start + k - 1] == '(' and s[end - k + 1] == ')':
+                        if (start + k, end - k) in table:
+                            table[(start, end)] = True
+                            break
+                    else:
+                        break
+                    k += 1
+
         print(table)
-        return longest
-    
-'''
-        N = len(s)
-        
-        for i in range(len(s)):
-            for j in range(len(s)-1,i,-1):
-                if (i - j + 1)%2 != 0:
-                    continue
 
-                curr = s[i:j+1]
-#                print(" i = "+str(i)+" j = "+str(j))
-#                print(curr)
-                if (i,j) in table:
-                    print('opt2')
-                    longest = max(longest,len(curr))
-                elif isValid(curr,i,j):
-                    longest = max(longest,len(curr))
-        #print(table)
-'''
-
-        
 if __name__ == '__main__':
-#    s ="()(())()()())((()))())((())()(())((()()()()(()()()))))))(()))()(())()(((()()(((()()()(((())))((())(()((()())())()(()(()(((())()()))())((())()(((())()()))))()(((()()))()()))(((()))(((())))())())("
-#    s = "(()))(((())))"
-    s = "())"
-    print(Solution().longestValidParentheses(s))
+    x = Solution()
+    start = time.time()
+    with open('32_tc.text', 'r') as f:
+        edges = ast.literal_eval(f.readline())
+        #print(edges)
+        print(x.longestValidParentheses(edges))
+    end = time.time()
+    elapsed = end - start
+    print(f'time elapsed: {elapsed}')
 

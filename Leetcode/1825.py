@@ -58,8 +58,8 @@ class MKAverage:
         hi = self._getindex(self.m - self.k)
         #print(f'calculating MKAverage hi = {hi} for m - k = {self.m - self.k}')
 
-        # Sum up to last kth element - Sum upto kth element from the start.        
         ans = self.value.sum(hi) - self.value.sum(lo)
+        # Sum up to last kth element - Sum upto kth element from the start.        
         
         # adjust, but why?
         # ex. m = 6, k = 2, nums = [1,2,2,3,3,4]
