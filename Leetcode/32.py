@@ -12,6 +12,60 @@ class Solution:
         :type s: str
         :rtype: int
         """
+        startsFrom = {}
+        endsAt = {}
+        q = set()
+
+        def addIntervalToTables(startsFrom, endsAt, start, end):
+            startsFrom[start] = end
+            endsAt[end] = start
+
+        for i in range(1, len(s)):
+            if s[i - 1] == '(' and s[i] == ')':
+                addIntervalToTables(startsFrom, endsAt, i - 1, i)
+                q.add((i - 1, i))
+
+        longest_valid = 2 if len(q) > 0 else 0
+        #print(table)
+        
+        while len(q) > 0:
+            interval = q.pop()
+            start = interval[0]
+            end = interval[1]
+            interval_size = end - start + 1
+            longest_valid = max(longest_valid, interval_size)
+            #print(f'checking {interval} which is the substring {s[start:end + 1]}')
+            #if interval_size > 4:
+                #print(f'left chars are {s[0:start]} right chars are {s[end + 1:]}')
+
+            # Check if there are enclosing brackets.
+            if start > 0 and end < len(s) - 1:
+                if s[start - 1] == '(' and s[end + 1] == ')':
+                    longest_valid = max(longest_valid, interval_size + 2)
+                    addIntervalToTables(startsFrom, endsAt, start - 1, end + 1)
+                    q.add((start - 1, end + 1))
+            # Check left additive.
+            left = start - 1
+            if left >= 0 and left in endsAt:
+                lstart = endsAt[left]
+                longest_valid = max(longest_valid, interval_size + (left - lstart + 1))
+                addIntervalToTables(startsFrom, endsAt, lstart, end)
+                q.add((lstart, end))
+            # Check right additive.
+            right = end + 1
+            if right < len(s) and right in startsFrom:
+                rend = startsFrom[right]
+                longest_valid = max(longest_valid, interval_size + (rend - right + 1))
+                addIntervalToTables(startsFrom, endsAt, start, rend)
+                q.add((start, rend))
+            #print(f'q is {q}')
+        return longest_valid                     
+
+    def longestValidParentheses2(self, s):
+        """
+        :type s: str
+        :rtype: int
+        """
         table = {}
 
         for i in range(1, len(s)):
