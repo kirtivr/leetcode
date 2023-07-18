@@ -5,6 +5,7 @@ import ast
 import sys
 from functools import cmp_to_key
 import time
+import copy
 #from dictionary_wrapper import Dictionary
 
 class Dictionary:
@@ -17,43 +18,56 @@ class Dictionary:
         self.container = {}
     
     def __copy__(self, other):
-        for key, value in other.container.items():
-            self.addMultiple(key, value)
-            self.setMinAndMaxWithUpdatedKey(key)
+        # Do shallow copy if possible.
+        if not self.container:
+            self.container = other.container.copy()
+            self.min = other.min
+            self.min_chars = set(other.min_chars)
+            self.max = other.max
+            self.max_chars = set(other.max_chars)
+            self.label = other.label
+            return
 
-    def __deepcopy__(self, other):
-        self.__copy__(other)
+        for key, value in other.container.items():
+            if key not in self.container:
+                self.container[key] = value
+            else:
+                self.container[key] += value
+        
+        (self.min, self.min_chars) = self.findMinimum()
+        (self.max, self.max_chars) = self.findMaximum()
 
     def findMinimum(self):
         minv = float("inf")
-        minarr = []
+        minarr = set()
 
         for key, value in self.container.items():
             if value < minv:
                 minv = value
-                minarr = [key]
+                minarr = {key}
             elif value == minv:
-                minarr.append(key)
+                minarr.add(key)
 
         return (minv, minarr)
     
     def findMaximum(self):
         maxv = -float("inf")
-        maxarr = []
+        maxarr = set()
 
         for key, value in self.container.items():
             if value < maxv:
                 maxv = value
-                maxarr = [key]
+                maxarr = {key}
             elif value == maxv:
-                maxarr.append(key)
+                maxarr.add(key)
 
         return (maxv, maxarr)
 
-    def getMaxMin(self):
+    def getMinMax(self):
         return [[self.min, self.min_chars], [self.max, self.max_chars]]
 
     def setMinAndMaxWithUpdatedKey(self, x):
+        #print(f'label = {self.label} self.min_chars = {self.min_chars}')
         # x may not be present in container, remove it from min and max.
         if x not in self.container:
             if x in self.min_chars:
@@ -89,22 +103,14 @@ class Dictionary:
             self.max_chars.remove(x)
             if len(self.max_chars) == 0:
                 (self.max, self.max_chars) = self.findMaximum()
-        
-    def addMultiple(self, key, value):
+
+    def add(self, key, value):
         if key not in self.container:
             self.container[key] = value
         else:
             self.container[key] += value
 
         self.setMinAndMaxWithUpdatedKey(key)
-
-    def add(self, x):
-        if x not in self.container:
-            self.container[x] = 1
-        else:
-            self.container[x] += 1
-
-        self.setMinAndMaxWithUpdatedKey(x)
 
     def remove(self, x):
         if x not in self.container:
@@ -131,12 +137,14 @@ class SegmentTree:
         while pow_2 < num_elements:
             pow_2 = pow_2 << 1
         self.total_nodes = pow_2 * 2 - 1
-        self.leaf = self.total_nodes - num_elements - 1
-        print(f'num_elements = {num_elements} total nodes = {self.total_nodes} leaf = {self.leaf}')
+        self.leaf = self.total_nodes // 2
+        #print(f'num_elements = {num_elements} total nodes = {self.total_nodes} leaf = {self.leaf}')
         self.counts = [Dictionary(str(i)) for i in range(self.total_nodes)]
         self.st_cache = {}
 
     def getParentIndexFor(self, i: int):
+        if i == 0:
+            return None
         if i % 2 == 0:
             i -= 1
         return i >> 1
@@ -148,12 +156,10 @@ class SegmentTree:
         adjusted_index = self.leaf + index
         parent_index = adjusted_index
 
-        while parent_index > 0:
-            print(f'index = {adjusted_index} parent index = {parent_index}')
-            self.counts[parent_index].add(ch)
+        while parent_index is not None:
+            #print(f'index = {adjusted_index} parent index = {parent_index}')
+            self.counts[parent_index].add(ch, 1)
             parent_index = self.getParentIndexFor(parent_index)
-
-        self.counts[0].add(ch)
 
     def populateCache(self):
         for i in range(self.leaf, self.total_nodes):
@@ -168,72 +174,70 @@ class SegmentTree:
             start = i - self.leaf
             span = 2
             end = start + span - 1
-            parent_index = self.getParentIndexFor(start)
-            left = True
+            parent_index = self.getParentIndexFor(start + self.leaf)
+            left = parent_index % 2 == 1
 
-            while parent_index > 0 and (start, end) not in self.st_cache:
+            #print(f'processing start = {start} end = {end} parent = {parent_index}\n')
+            while parent_index is not None and  start >= 0 and end < self.total_nodes and (start, end) not in self.st_cache:
                 self.st_cache[(start, end)] = [
                     [self.counts[parent_index].min, self.counts[parent_index].min_chars],
                     [self.counts[parent_index].max, self.counts[parent_index].max_chars],
                     self.counts[parent_index]
                     ]
                 parent_index = self.getParentIndexFor(parent_index)
+                if parent_index == None:
+                    break
                 span *= 2
-                left = parent_index % 2 == 1
                 if left:
                     end = start + span - 1
                 else:
-                    start = start - span + 1
-
-        if (0, self.total_nodes - self.leaf - 1) not in self.st_cache:
-            self.st_cache[(0, self.total_nodes - self.leaf - 1)] = [
-                    [self.counts[0].min, self.counts[0].min_chars],
-                    [self.counts[0].max, self.counts[0].max_chars],
-                    self.counts[0]]
+                    start = start - span + 2
+                # Is the parent a left or a right subtree.
+                left = parent_index % 2 == 1
+                #print(f'new start = {start} end = {end} parent = {parent_index}')
 
     def mergeCacheIntervals(self, a, b):
         if a[1] + 1 != b[0]:
             print(f'invalid intervals given for merge: {a} {b}')
 
         a_c = self.st_cache[a][2]
-        b_c = self.st_cache[a][2]
+        b_c = self.st_cache[b][2]
         start = a[0]
         end = b[1]
 
-        temp = Dictionary(f'({start}, {end})')
-        temp.__copy__(a_c)
+        self.st_cache[(start, end)] = [[], [], Dictionary(f'({start}, {end})')]
+        self.st_cache[(start, end)][2].__copy__(a_c)
         # Can this be avoided?
-        temp.__copy__(b_c)
-
-        self.st_cache[(start, end)] = [[], [], None]
-        (self.st_cache[(start, end)][0], self.st_cache[(start, end)][1]) = temp.getMaxMin()
-        self.st_cache[(start, end)][2] = temp
+        self.st_cache[(start, end)][2].__copy__(b_c)
+        #print(f'merged {a} -> {a_c} and {b} -> {b_c} to get {self.st_cache[(start, end)][2]}')
+        (self.st_cache[(start, end)][0], self.st_cache[(start, end)][1]) = self.st_cache[(start, end)][2].getMinMax()
 
     def queryForMaximumVarianceInRange(self, start: int, end: int):
-        self.recursiveQuery(self.leaf + start, self.leaf + end)
+        self.recursiveQuery(start, end)
     
     def recursiveQuery(self, start: int, end: int):
         # Adjust start and end index to reflect the range in the tree leaves.
         start = start
         end = end
-
-        print(f'(adjusted) start = {start} end = {end}')
+        left = start % 2 == 0
+        #print(f'start = {start} end = {end}')
         if end < start:
-            print(f'invariant end < start {end} < {start}')
+            #print(f'invariant end < start {end} < {start}')
             return
         elif (start, end) in self.st_cache:
             return
-        elif start % 2 == 0:
+        elif not left:
             self.recursiveQuery(start + 1, end)
             self.mergeCacheIntervals((start, start), (start + 1, end))
             return
 
         # 'start' is guaranteed to be a left node.
-        maybe_overrunning_parent_idx = start
+        maybe_overrunning_parent_idx = start + self.leaf
         overlapping_interval = (start, start)
         span = 1
         current_end = start + span - 1
         left = True
+
         while left and current_end < end:
             maybe_overrunning_parent_idx = self.getParentIndexFor(maybe_overrunning_parent_idx)
             left = maybe_overrunning_parent_idx % 2 == 1
@@ -243,9 +247,9 @@ class SegmentTree:
                 overlapping_interval = (start, current_end)
 
         # Note overlapping_parent is guaranteed to be in the range of (start, end)
-        print(f'for given input interval ({start}, {end}) overlapping interval ({overlapping_interval}) found')
+        #print(f'for given input interval ({start}, {end}) overlapping interval ({overlapping_interval}) found')
         next_interval = (overlapping_interval[1] + 1, end)
-        print(f'next interval = {next_interval}')
+        #print(f'next interval = {next_interval}')
         self.recursiveQuery(next_interval[0], next_interval[1])
         self.mergeCacheIntervals(overlapping_interval, next_interval)
 
@@ -262,18 +266,27 @@ class Solution:
 
         #print(st)
         st.populateCache()
-        print()
-        for key, value in st.st_cache.items():
-            print(key)
+        #print(st.st_cache)
 
         maxv = 0
-        for i in range(N):
-            for j in range(i + 1, N):
-                print(f'for interval ({i}, {j})\n\n')
+        
+        
+        for window_size in range(N, 1, -1):
+            if window_size <= maxv:
+                break
+
+            for i in range(N):
+                j = i + window_size - 1
+                if j >= N:
+                    break
+                #print(f'for interval ({i}, {j})\n\n')
                 if (i, j) not in st.st_cache:
                     st.queryForMaximumVarianceInRange(i, j)
-                (maxc, minc) = (st.st_cache[(i, j)][0][0], st.st_cache[(i, j)][1][0])
+                
+                (maxc, minc) = (st.st_cache[(i, j)][1][0], st.st_cache[(i, j)][0][0])
+                #print(f'for ({i}, {j}) maxc = {maxc} minc = {minc} counts = {st.st_cache[(i, j)][2]}')
                 maxv = max(maxv, maxc - minc)
+        return maxv
 
     def largestVariance2(self, s: str) -> int:
         N = len(s)
