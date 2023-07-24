@@ -1,7 +1,8 @@
 from typing import List, Optional, Tuple, Dict
 
 class Dictionary:
-    def __init__(self):
+    def __init__(self, label:str = None):
+        self.label = label
         self.min = float("inf")
         self.min_chars = set()
         self.max = -float("inf")
@@ -9,14 +10,56 @@ class Dictionary:
         self.container = {}
     
     def __copy__(self, other):
-        for key, value in other.container.items():
-            self.addMultiple(key, value)
-            self.setMinAndMaxWithUpdatedKey(key)
+        # Do shallow copy if possible.
+        if not self.container:
+            self.container = other.container.copy()
+            self.min = other.min
+            self.min_chars = set(other.min_chars)
+            self.max = other.max
+            self.max_chars = set(other.max_chars)
+            self.label = other.label
+            return
 
-    def __deepcopy__(self, other):
-        self.__copy__(other)
+        for key, value in other.container.items():
+            if key not in self.container:
+                self.container[key] = value
+            else:
+                self.container[key] += value
+        
+        (self.min, self.min_chars) = self.findMinimum()
+        (self.max, self.max_chars) = self.findMaximum()
+
+    def findMinimum(self):
+        minv = float("inf")
+        minarr = set()
+
+        for key, value in self.container.items():
+            if value < minv:
+                minv = value
+                minarr = {key}
+            elif value == minv:
+                minarr.add(key)
+
+        return (minv, minarr)
+    
+    def findMaximum(self):
+        maxv = -float("inf")
+        maxarr = set()
+
+        for key, value in self.container.items():
+            if value < maxv:
+                maxv = value
+                maxarr = {key}
+            elif value == maxv:
+                maxarr.add(key)
+
+        return (maxv, maxarr)
+
+    def getMinMax(self):
+        return [[self.min, self.min_chars], [self.max, self.max_chars]]
 
     def setMinAndMaxWithUpdatedKey(self, x):
+        #print(f'label = {self.label} self.min_chars = {self.min_chars}')
         # x may not be present in container, remove it from min and max.
         if x not in self.container:
             if x in self.min_chars:
@@ -24,9 +67,9 @@ class Dictionary:
             if x in self.max_chars:
                 self.max_chars.remove(x)
             if len(self.min_chars) == 0:
-                self.min = 0
+                self.min = float("inf")
             if len(self.max_chars) == 0:
-                self.max = 0
+                self.max = -float("inf")
             return
 
         if self.container[x] < self.min:
@@ -45,24 +88,21 @@ class Dictionary:
 
         if self.container[x] > self.min and x in self.min_chars:
             self.min_chars.remove(x)
+            if len(self.min_chars) == 0:
+                (self.min, self.min_chars) = self.findMinimum()
+
         if self.container[x] < self.max and x in self.max_chars:
             self.max_chars.remove(x)
-        
-    def addMultiple(self, key, value):
+            if len(self.max_chars) == 0:
+                (self.max, self.max_chars) = self.findMaximum()
+
+    def add(self, key, value):
         if key not in self.container:
             self.container[key] = value
         else:
             self.container[key] += value
 
         self.setMinAndMaxWithUpdatedKey(key)
-
-    def add(self, x):
-        if x not in self.container:
-            self.container[x] = 1
-        else:
-            self.container[x] += 1
-
-        self.setMinAndMaxWithUpdatedKey(x)
 
     def remove(self, x):
         if x not in self.container:
@@ -77,3 +117,7 @@ class Dictionary:
 
     def __str__(self):
         return str(self.container)
+    
+    def __repr__(self):
+        out = str(self.label) + ':' + str(self.container) if self.label is not None else str(self.container)
+        return f'{out if self.label is not None else str(self.container)}'
