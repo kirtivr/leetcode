@@ -9,40 +9,35 @@ import copy
 
 class Solution:
     def largestVariance(self, s: str) -> int:
-        N = len(s)        
-        maxv = 0
+        count1 = 0
+        count2 = 0
+        max_variance = 0
+        
+        # create distinct list of character pairs
+        pairs = [(l1, l2) for l1 in set(s) for l2 in set(s) if l1 != l2]
 
-        chars = {c : True for c in s}
-        letters = sorted(chars.keys())
-        last_reset = None
-        for c1s in letters:
-            for c2s in letters:
-                if c1s == c2s:
-                    continue
-                count_diff = [0 for i in range(N)]
-
-                for i in range(N):
-                    ch = s[i]
-
-                    if ch != c1s and ch != c2s:
-                        count_diff[i] = count_diff[i - 1] if i > 0 else 0
+        # run once for original string order, then again for reverse string order
+        for runs in range(2):
+            for pair in pairs:
+                count1 = count2 = 0
+                for letter in s:
+                    # no reason to process letters that aren't part of the current pair
+                    if letter not in pair:
                         continue
-                    
-                    if ch == c1s:
-                        count_diff[i] = count_diff[i - 1] + 1 if i > 0 else 1
-                        if i > 0 and last_reset != i - 1:
-                            maxv = max(maxv, count_diff[i])
-                    else:
-                        if i == 0:
-                            continue
-                        if count_diff[i - 1] == 0:
-                            last_reset = i
-                            count_diff[i] = 0
-                            continue
-                        count_diff[i] = count_diff[i - 1] - 1 if count_diff[i - 1] > 0 else 0
-
-                #print(f'c1 = {c1s} c2 = {c2s} count_diff = {count_diff}')
-        return maxv
+                    if letter == pair[0]:
+                        count1 += 1
+                    elif letter == pair[1]:
+                        count2 += 1
+                    if count1 < count2:
+                        count1 = count2 = 0
+                    elif count1 > 0 and count2 > 0:
+                        max_variance = max(max_variance, count1 - count2)
+                
+            
+            # reverse the string for the second time around
+            s = s[::-1]
+                
+        return max_variance
 
 if __name__ == '__main__':
     x = Solution()

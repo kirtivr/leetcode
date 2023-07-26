@@ -269,8 +269,6 @@ class Solution:
         #print(st.st_cache)
 
         maxv = 0
-        
-        
         for window_size in range(N, 1, -1):
             if window_size <= maxv:
                 break
