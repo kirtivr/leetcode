@@ -30,23 +30,19 @@ class Solution:
         # Synthesize the results while ensuring there is no double counting.
         # Go from back to front, accumulating the number of palindromes possible from any one point.
         current = N - 1
-        palindromes_from = {i : 1 for i in range(N)}
+        num_cuts = {i : 1 for i in range(N)}
         while current >= 0:
-            max_at_current = 0 if current == N - 1 else palindromes_from[current + 1]
-
-            total_from_current = 0
+            min_at_current = 0 if current == N - 1 else num_cuts[current + 1] + 1
+            #print(locals())            
             for end in startsAt[current]:
-                combination = 1 + palindromes_from[end]
-                total_from_current = max(total_from_current, combination)
+                combination = (1 + num_cuts[end + 1]) if end < N - 1 else 0
+                min_at_current = min(min_at_current, combination)
 
-            max_at_current = max(total_from_current, max_at_current)
-            palindromes_from[current] = max_at_current
-
+            num_cuts[current] = min_at_current
             current -= 1
 
-        for start in range(N):
-            print(f'number of palindromes possible starting from {start} = {palindromes_from[start]}')
-
+        print(f'{num_cuts}')
+        return num_cuts[0]
 
 if __name__ == '__main__':
     x = Solution()
