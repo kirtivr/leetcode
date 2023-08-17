@@ -86,6 +86,8 @@ class Solution:
             visited = {}
             optimal_sz = n + len(perms) - 1
             self.tryLinkingAllPossiblePermutationsStartingFrom(perm, connections, optimal_sz, visited, "")
+            if self.string:
+                break
 
         return self.string
 
@@ -97,7 +99,8 @@ if __name__ == '__main__':
         #print(n)
         k = ast.literal_eval(f.readline())
         #print(edges)
-        print(x.crackSafe(n, k))
+        out = x.crackSafe(n, k)
+        print(f"len(string) = {len(out)} string = {out}")
     end = time.time()
     elapsed = end - start
     print(f'time elapsed: {elapsed}')
