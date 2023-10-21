@@ -86,7 +86,7 @@ impl Solution {
 
 fn zero_one_knapsack_inner(
     sorted_container : &Vec<CostMin>, mut current : usize,
-    mut remaining : i32, mut visited : &mut HashMap<(i32, i32), Option<i32>>) {
+    mut remaining : i32, visited : &mut HashMap<(i32, i32), Option<i32>>) {
         let container_size = sorted_container.len();
     
         if current == container_size {
@@ -104,14 +104,10 @@ fn zero_one_knapsack_inner(
             // Either the current element is picked or it is not picked.
             let temp : usize = (remaining + 1).try_into().unwrap();            
             if current + 1 < container_size && ((current + temp < container_size)) {
-                // if !visited.contains_key(&((current + 1).try_into().unwrap(), remaining)) {
-                //     println!("{:?} not found", ((current + 1), remaining));
-                // } else {
                 let cost_if_skipped = visited[&((current + 1).try_into().unwrap(), remaining)];
                 if cost_if_skipped.is_some() {
                     min_cost = min(min_cost, total_cost + cost_if_skipped.unwrap());
                 }
-                // }
             }  
 
             // println!("painting wall {:?} remaining = {}", x, remaining);
@@ -127,6 +123,8 @@ fn zero_one_knapsack_inner(
             visited.insert((visited_index.0, visited_index.1), Some(min_cost));
         } else if min_cost == i32::pow(10, 9) {
             visited.insert((visited_index.0, visited_index.1), None);
+        } else {
+            visited.insert((visited_index.0, visited_index.1), Some(min_cost));
         }
 
         return;
@@ -137,8 +135,8 @@ fn zero_one_knapsack_iterative(
 {
     let N: i32 = sorted_container.len().try_into().unwrap();
     for current in (0..N).rev() {
-        for remaining in 1..(N - current + 1) {
-            println!("[{}][{}]", current, remaining);
+        for remaining in (0..N + 1).rev() {
+            // println!("[{}][{}]", current, remaining);
             Self::zero_one_knapsack_inner(sorted_container, current.try_into().unwrap(), remaining.try_into().unwrap(), &mut visited);
             // println!("{:?}", visited);
         }
@@ -172,32 +170,31 @@ pub fn paint_walls(mut cost: Vec<i32>, time: Vec<i32>) -> i32 {
 
         sorted_container.sort();
 
-        // println!("Sorted container before re-adjusting weights {:?}", sorted_container);
+        println!("Sorted container before re-adjusting weights {:?}", sorted_container);
 
-        let mut walls_remaining = total_size;
+        /*let mut walls_remaining = total_size;
         for cost_struct in sorted_container.iter_mut() {
             if walls_remaining <= 0 {
                 cost_struct.time = 1;
-            } else if walls_remaining <= cost_struct.time {
+            } else if walls_remaining < cost_struct.time {
                 // Reduce the extraneous time.
                 let extraneous_time = cost_struct.time - walls_remaining;
                 cost_struct.time -= extraneous_time;
-                cost_struct.time = max(cost_struct.time, 1);
             }
             walls_remaining = walls_remaining - (cost_struct.time);
         }
 
         sorted_container.sort();
-        //println!("Sorted container after re-adjusting weights {:?}", sorted_container);
-
+        println!("Sorted container after re-adjusting weights {:?}", sorted_container);
+        */
         let mut visited:HashMap<(i32, i32), Option<i32>> = Default::default();
 
         // return Self::zero_one_knapsack(&sorted_container, 0, 0, total_size, &mut visited).unwrap();
 
         Self::zero_one_knapsack_iterative(&sorted_container, &mut visited);
 
-        println!("{:?}", visited);
-
+        // println!("{:?}", visited);
+        println!("[2][10] = {} [3][6] = {} [0][2] = {}", visited[&(3, 10)].unwrap(), visited[&(4, 6)].unwrap(), visited[&(0, 2)].unwrap());
         return visited[&(0, total_size)].unwrap();
     }
 }
