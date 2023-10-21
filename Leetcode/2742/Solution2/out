@@ -1,0 +1,58 @@
+   Compiling Solution2 v0.1.0 (/home/horizon/Documents/git/leetcode/Leetcode/2742/Solution2)
+warning: unused import: `core::time`
+ --> src/main.rs:3:5
+  |
+3 | use core::time;
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::cmp::min`
+ --> src/main.rs:4:5
+  |
+4 | use std::cmp::min;
+  |     ^^^^^^^^^^^^^
+
+warning: unused import: `std::cmp::max`
+ --> src/main.rs:5:5
+  |
+5 | use std::cmp::max;
+  |     ^^^^^^^^^^^^^
+
+error[E0382]: use of moved value: `min_cost`
+  --> src/main.rs:92:40
+   |
+50 |     let mut min_cost = CostMin {
+   |         ------------ move occurs because `min_cost` has type `CostMin`, which does not implement the `Copy` trait
+...
+65 |                     add_to_visited = Some(min_cost);
+   |                                           -------- value moved here, in previous iteration of loop
+...
+92 |         if a_cost.cost + b_cost.cost < min_cost.cost {
+   |                                        ^^^^^^^^^^^^^ value used here after move
+   |
+note: these 2 reinitializations might get skipped
+  --> src/main.rs:75:17
+   |
+75 |                   min_cost = wall.clone();
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^
+...
+93 | /             min_cost = CostMin {
+94 | |                 cost : a_cost.cost + b_cost.cost,
+95 | |                 time : a_cost.time + b_cost.time
+96 | |             };
+   | |_____________^
+
+warning: variable does not need to be mutable
+   --> src/main.rs:148:20
+    |
+148 | pub fn paint_walls(mut cost: Vec<i32>, time: Vec<i32>) -> i32 {
+    |                    ----^^^^
+    |                    |
+    |                    help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+For more information about this error, try `rustc --explain E0382`.
+warning: `Solution2` (bin "Solution2") generated 4 warnings
+error: could not compile `Solution2` (bin "Solution2") due to previous error; 4 warnings emitted

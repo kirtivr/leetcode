@@ -30,24 +30,40 @@ impl PartialOrd for CostMin {
 struct CostMin {
     cost : i32,
     time : i32,
-    position : i32
+    // position : i32
 }
 
 impl Solution {
 
 fn zero_one_knapsack_recurse<'a>(
-    lowest_cost_for_time: &HashMap<i32, i32>, walls: &'a HashSet<CostMin>, time_left : i32, visited: &mut HashSet<i32>) -> (i32, HashSet<CostMin>) {
+    lowest_cost_for_time: &HashMap<i32, i32>, walls: &'a HashSet<CostMin>, time_left : i32, visited: &mut HashSet<i32>) -> 
+    (CostMin, HashSet<CostMin>) {
+    println!("visited = {:?} time_left = {}", visited, time_left);
     if !visited.contains(&time_left) && lowest_cost_for_time.contains_key(&time_left) {
         visited.insert(time_left);
-        return (lowest_cost_for_time[&time_left], Default::default());
+        return (CostMin{
+            cost : lowest_cost_for_time[&time_left],
+            time : time_left
+        }, Default::default());
     }
-    let mut min_cost = i32::pow(10, 9);
 
-    for pair in lowest_cost_for_time.iter() {
-        let (ltime, lcost) = pair;
-        if ltime >= &time_left {
-            if lcost < &min_cost {
-                min_cost = *lcost
+    let mut min_cost = CostMin {
+        cost : i32::pow(10, 9),
+        time : time_left
+    };
+
+    let mut add_to_visited : Option<CostMin> = None;
+    if !visited.contains(&time_left) {
+        for pair in lowest_cost_for_time.iter() {
+            let (ltime, lcost) = pair;
+            if ltime >= &time_left {
+                if lcost < &min_cost.cost {
+                    min_cost = CostMin {
+                        cost : *lcost,
+                        time : *ltime
+                    };
+                    add_to_visited = Some(min_cost.clone());
+                }
             }
         }
     }
@@ -55,9 +71,11 @@ fn zero_one_knapsack_recurse<'a>(
     let mut to_remove_walls: HashSet<CostMin> = Default::default();
     for wall in walls.iter() {
         if wall.time >= time_left {
-            if wall.cost < min_cost {
-                min_cost = wall.cost;
+            if wall.cost < min_cost.cost {
+                min_cost = wall.clone();
+                to_remove_walls.clear();
                 to_remove_walls.insert(wall.clone());
+                add_to_visited = None;
             }
         }
     }
@@ -71,13 +89,22 @@ fn zero_one_knapsack_recurse<'a>(
             to_send.insert(x.clone());
         }
         let (b_cost, b_to_remove) = Self::zero_one_knapsack_recurse(lowest_cost_for_time, &to_send, b_part, visited);
-        if a_cost + b_cost < min_cost {
-            min_cost = a_cost + b_cost;
+        if a_cost.cost + b_cost.cost < min_cost.cost {
+            min_cost = CostMin {
+                cost : a_cost.cost + b_cost.cost,
+                time : a_cost.time + b_cost.time
+            };
+            println!("min is from {} and {}", a_part, b_part);
             to_remove_walls.clear();
             for x in a_to_remove.union(&b_to_remove) {
                 to_remove_walls.insert(x.clone());
             }
+            add_to_visited = None;
         }
+    }
+
+    if add_to_visited.is_some() {
+        visited.insert(add_to_visited.unwrap().time);
     }
     
     return (min_cost, to_remove_walls);
@@ -90,24 +117,30 @@ fn zero_one_knapsack_iterative(
     let n: i32 = sorted_container.len().try_into().unwrap();
     let mut lowest_cost_for_time: HashMap<i32, i32> = Default::default();
 
-    let mut min_cost = 0;
-    let mut walls_painted: HashSet<CostMin> = Default::default();
 
     let mut visited: HashSet<i32> = Default::default();
-    for time_left in 1..n + 1 {
+    let mut time_left = 1;
+    while time_left <= n {
         // println!("[{}][{}]", current, remaining);
-        (min_cost, walls_painted) = Self::zero_one_knapsack_recurse(&lowest_cost_for_time, &mut sorted_container, time_left, &mut visited);
+        let (min_cost, walls_painted) = Self::zero_one_knapsack_recurse(&lowest_cost_for_time, &mut sorted_container, time_left, &mut visited);
         let mut copy: HashSet<CostMin> = Default::default();
         for x in walls_painted {
             copy.insert(x.clone());
         }
-        lowest_cost_for_time.insert(time_left, min_cost);
+        println!("to remove = {:?}", copy);
+        // So our input time was "time_left" but the minimum cost here covers a range up to min_cost.time.
+        lowest_cost_for_time.insert(min_cost.time, min_cost.cost);
+
         sorted_container.retain(|wall| {
             return !(copy.contains(wall));
         });
         println!("for time = {} lowest cost = {:?}\n sorted_container = {:?}\n", time_left, lowest_cost_for_time, sorted_container);
+        // Can clear the "visited" set here, because we can reuse groups.
+        visited.clear();
+
+        time_left = min_cost.time + 1;
     }
-    return lowest_cost_for_time[&n];
+    return 1;
 }
 
 pub fn paint_walls(mut cost: Vec<i32>, time: Vec<i32>) -> i32 {
@@ -128,7 +161,7 @@ pub fn paint_walls(mut cost: Vec<i32>, time: Vec<i32>) -> i32 {
             let to_push = CostMin {
                 cost: *cost.get(i).unwrap(),
                 time : painting_time + 1,
-                position : i.try_into().unwrap()
+                // position : i.try_into().unwrap()
             };
             sorted_container.insert(to_push);
             // println!("At index {} sorted container = {:?}", i, sorted_container);
