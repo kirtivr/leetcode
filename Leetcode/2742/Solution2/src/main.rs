@@ -1,15 +1,19 @@
 struct Solution {}
 
 use core::time;
+use std::borrow::BorrowMut;
 use std::cmp::min;
 use std::cmp::max;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryInto;
+use std::ops::Add;
+use std::ops::AddAssign;
+use std::rc::Rc;
 
 // Priority Queue depends on Ord.
-impl Ord for CostMin {
+/*impl Ord for CostMin {
     fn cmp(&self, other: &Self) -> Ordering {
         return self.time.cmp(&other.time);
     }
@@ -20,62 +24,57 @@ impl PartialOrd for CostMin {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
-}
+}*/
+
+const TEMP_ID: i32 = -2;
+const WALL_ID: i32 = -1;
+const INVALID: i32 = -3;
 
 #[derive(PartialEq)]
 #[derive(Eq)]
 #[derive(Debug)]
 #[derive(Hash)]
 #[derive(Clone)]
-struct CostMin {
-    cost : i32,
-    time : i32,
-    // position : i32
+#[derive(Default)]
+struct TimeRange {
+    id : i32,
+    low : i32,
+    high : i32,
+    cost : i32
 }
 
 impl Solution {
 
 fn zero_one_knapsack_recurse<'a>(
-    lowest_cost_for_time: &HashMap<i32, i32>, walls: &'a HashSet<CostMin>, time_left : i32, visited: &mut HashSet<i32>) -> 
-    (CostMin, HashSet<CostMin>) {
-    println!("visited = {:?} time_left = {}", visited, time_left);
-    if !visited.contains(&time_left) && lowest_cost_for_time.contains_key(&time_left) {
-        visited.insert(time_left);
-        return (CostMin{
-            cost : lowest_cost_for_time[&time_left],
-            time : time_left
-        }, Default::default());
-    }
+    lowest_cost_for_time: &Vec<TimeRange>, walls: &'a HashSet<TimeRange>, time_left : i32, visited: &mut HashSet<i32>) -> 
+    (TimeRange, HashSet<TimeRange>) {
+    // println!("visited = {:?} time_left = {}", visited, time_left);
 
-    let mut min_cost = CostMin {
-        cost : i32::pow(10, 9),
-        time : time_left
-    };
-
-    let mut add_to_visited : Option<CostMin> = None;
-    if !visited.contains(&time_left) {
-        for pair in lowest_cost_for_time.iter() {
-            let (ltime, lcost) = pair;
-            if ltime >= &time_left {
-                if lcost < &min_cost.cost {
-                    min_cost = CostMin {
-                        cost : *lcost,
-                        time : *ltime
-                    };
-                    add_to_visited = Some(min_cost.clone());
-                }
-            }
+    for time_cost_range in lowest_cost_for_time.iter() {
+        if visited.contains(&time_cost_range.id) {
+            continue;
+        }
+        let (ltime, htime, _cost) = (time_cost_range.low, time_cost_range.high, time_cost_range.cost);
+        if time_left >= ltime && time_left <= htime {
+            // We know that in this range of time, this is the minimum cost.
+            visited.insert(time_cost_range.id);
+            return (time_cost_range.clone(), Default::default());
         }
     }
 
-    let mut to_remove_walls: HashSet<CostMin> = Default::default();
+
+    let mut to_remove_walls: HashSet<TimeRange> = Default::default();
+    let mut output_tr: TimeRange = Default::default();
+    output_tr.id = TEMP_ID;
+    output_tr.cost = i32::pow(10, 9);
     for wall in walls.iter() {
-        if wall.time >= time_left {
-            if wall.cost < min_cost.cost {
-                min_cost = wall.clone();
+        if wall.high >= time_left {
+            if wall.cost < output_tr.cost {
                 to_remove_walls.clear();
                 to_remove_walls.insert(wall.clone());
-                add_to_visited = None;
+                output_tr.low = time_left;
+                output_tr.high = wall.high;
+                output_tr.cost = wall.cost;
             }
         }
     }
@@ -84,52 +83,56 @@ fn zero_one_knapsack_recurse<'a>(
         let a_part = pointer;
         let b_part = time_left - pointer;
         let (a_cost, a_to_remove) = Self::zero_one_knapsack_recurse(lowest_cost_for_time, walls, a_part, visited);
-        let mut to_send : HashSet<CostMin> = Default::default();
+        let mut to_send : HashSet<TimeRange> = Default::default();
         for x in walls.difference(&a_to_remove) {
             to_send.insert(x.clone());
         }
-        let (b_cost, b_to_remove) = Self::zero_one_knapsack_recurse(lowest_cost_for_time, &to_send, b_part, visited);
-        if a_cost.cost + b_cost.cost < min_cost.cost {
-            min_cost = CostMin {
-                cost : a_cost.cost + b_cost.cost,
-                time : a_cost.time + b_cost.time
-            };
-            println!("min is from {} and {}", a_part, b_part);
+        println!("visited = {:?} walls_to_remove = {:?}", visited, a_to_remove);
+        let (b_cost, b_to_remove) =
+        Self::zero_one_knapsack_recurse(lowest_cost_for_time, &to_send, b_part, visited);
+        if a_cost.cost + b_cost.cost < output_tr.cost {
+            output_tr.cost = a_cost.cost + b_cost.cost;
+            output_tr.low = time_left;
+            output_tr.high = a_cost.high + b_cost.high;
+            println!("time_left = {} min is from {} and {} a_TimeRange = {:?} b_TimeRange = {:?}",time_left, a_part, b_part, a_cost, b_cost);
             to_remove_walls.clear();
             for x in a_to_remove.union(&b_to_remove) {
                 to_remove_walls.insert(x.clone());
             }
-            add_to_visited = None;
         }
     }
 
-    if add_to_visited.is_some() {
-        visited.insert(add_to_visited.unwrap().time);
-    }
-    
-    return (min_cost, to_remove_walls);
+    return (output_tr, to_remove_walls);
 }
 
 
 fn zero_one_knapsack_iterative(
-    mut sorted_container : &mut HashSet<CostMin>) -> i32
+    mut sorted_container : &mut HashSet<TimeRange>, mut id: &mut i32) -> i32
 {
     let n: i32 = sorted_container.len().try_into().unwrap();
-    let mut lowest_cost_for_time: HashMap<i32, i32> = Default::default();
+    let mut lowest_cost_for_time: Vec<TimeRange> = Default::default();
 
 
     let mut visited: HashSet<i32> = Default::default();
     let mut time_left = 1;
+    let mut time_elapsed = 0;
     while time_left <= n {
         // println!("[{}][{}]", current, remaining);
-        let (min_cost, walls_painted) = Self::zero_one_knapsack_recurse(&lowest_cost_for_time, &mut sorted_container, time_left, &mut visited);
-        let mut copy: HashSet<CostMin> = Default::default();
+        let (time_range, walls_painted) =
+        Self::zero_one_knapsack_recurse(&lowest_cost_for_time, &mut sorted_container, time_left, &mut visited);
+        let mut copy: HashSet<TimeRange> = Default::default();
         for x in walls_painted {
             copy.insert(x.clone());
         }
         println!("to remove = {:?}", copy);
         // So our input time was "time_left" but the minimum cost here covers a range up to min_cost.time.
-        lowest_cost_for_time.insert(min_cost.time, min_cost.cost);
+        *id += 1;
+        lowest_cost_for_time.push(TimeRange {
+            id : *id,
+            low : time_range.low,
+            high : time_range.high,
+            cost : time_range.cost
+        });
 
         sorted_container.retain(|wall| {
             return !(copy.contains(wall));
@@ -138,7 +141,8 @@ fn zero_one_knapsack_iterative(
         // Can clear the "visited" set here, because we can reuse groups.
         visited.clear();
 
-        time_left = min_cost.time + 1;
+        time_left = time_elapsed + time_range.high + 1;
+        time_elapsed = time_left;
     }
     return 1;
 }
@@ -147,21 +151,21 @@ pub fn paint_walls(mut cost: Vec<i32>, time: Vec<i32>) -> i32 {
         // The paid painter picks the wall with the lowest cost.
         // If there are more than one wall with lowest cost, pick
         // the one that takes more time.
-
-        // let mut heap = BinaryHeap::new();        
         let total_size : i32 = cost.len().try_into().unwrap();
 
         let mut i : usize = 0;
-        let mut sorted_container : HashSet<CostMin> = Default::default();
+        let mut sorted_container : HashSet<TimeRange> = Default::default();
+        let mut id: i32 = 0;
         while i < total_size.try_into().unwrap() {
             let mut painting_time : i32 = *time.get(i).unwrap();
             if painting_time > total_size {
                 painting_time = total_size;
             }
-            let to_push = CostMin {
+            let to_push = TimeRange {
+                id : WALL_ID,
                 cost: *cost.get(i).unwrap(),
-                time : painting_time + 1,
-                // position : i.try_into().unwrap()
+                low : painting_time + 1,
+                high : painting_time + 1,
             };
             sorted_container.insert(to_push);
             // println!("At index {} sorted container = {:?}", i, sorted_container);
@@ -172,52 +176,7 @@ pub fn paint_walls(mut cost: Vec<i32>, time: Vec<i32>) -> i32 {
 
         // return Self::zero_one_knapsack(&sorted_container, 0, 0, total_size, &mut visited).unwrap();
 
-        return Self::zero_one_knapsack_iterative(&mut sorted_container);
-    }
-}
-
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::PathBuf;
-
-struct FileHandler {
-    path : PathBuf,
-}
-
-impl FileHandler {
-    fn tokenizeString(&self, s: String) -> Vec<String> {
-        // We expect a list of comma separated values.
-        // println!("{}", s);
-        let r = s.replace(|ch| ch == '[' || ch == ']', "");
-        let values : Vec<String> = r.split(',').map(String::from).collect();
-        values
-    }
-
-    pub fn readAndTokenizeInput(&self) -> Vec<Vec<String>> {
-        let s : String = self.readFileContents();
-
-        let mut result = Vec::new();
-        for line in s.lines() {
-            result.push(self.tokenizeString(line.to_string()));
-        }
-
-        result
-    }
-
-    fn readFileContents(&self) -> String {
-        let display = self.path.to_str().unwrap();
-
-        // Open file in read-only mode.
-        let mut file = match File::open(&self.path) {
-            Err(why) => panic!("Couldn't open {}: {}", display, why),
-            Ok(file) => file,
-        };
-
-        let mut s = String::new();
-        match file.read_to_string(&mut s) {
-            Err(why) => panic!("couldn't read {}: {}", display, why),
-            Ok(_) => s,
-        }
+        return Self::zero_one_knapsack_iterative(&mut sorted_container, id.borrow_mut());
     }
 }
 
