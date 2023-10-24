@@ -1,48 +1,12 @@
 struct Solution {}
 
-use core::time;
-use std::borrow::BorrowMut;
-use std::cmp::min;
-use std::cmp::max;
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::btree_set::Union;
 use std::convert::TryInto;
-use std::ops::Add;
-use std::ops::AddAssign;
-use std::rc::Rc;
-
-// Priority Queue depends on Ord.
-/*impl Ord for CostMin {
-    fn cmp(&self, other: &Self) -> Ordering {
-        return self.time.cmp(&other.time);
-    }
-}
-
-// `PartialOrd` needs to be implemented as well.
-impl PartialOrd for CostMin {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}*/
 
 const TEMP_ID: i32 = -2;
 const WALL_ID: i32 = 1000;
-const INVALID: i32 = -3;
-
-#[derive(PartialEq)]
-#[derive(Eq)]
-#[derive(Debug)]
-#[derive(Hash)]
-#[derive(Clone)]
-#[derive(Default)]
-struct TimeRange {
-    id : i32,
-    low : i32,
-    high : i32,
-    cost : i32
-}
+static mut GLOBAL_ID: i32 = 0;
 
 #[derive(PartialEq)]
 #[derive(Eq)]
@@ -50,7 +14,10 @@ struct TimeRange {
 #[derive(Clone)]
 #[derive(Default)]
 struct UnionRange {
-    range: TimeRange,
+    id : i32,
+    low : i32,
+    high : i32,
+    cost : i32,
     uses_ranges: HashSet<i32>,
 }
 
@@ -58,7 +25,7 @@ impl Solution {
 
 fn extract_cost_from_vec(lowest_cost_for_time: &Vec<UnionRange>, time_left: i32) -> Option<&UnionRange> {
     for time_cost_range in lowest_cost_for_time.iter() {
-        let (ltime, htime, cost) = (time_cost_range.range.low, time_cost_range.range.high, time_cost_range.range.cost);
+        let (ltime, htime, _cost) = (time_cost_range.low, time_cost_range.high, time_cost_range.cost);
         if time_left >= ltime && time_left <= htime {
             return Some(time_cost_range);
         }
@@ -66,158 +33,154 @@ fn extract_cost_from_vec(lowest_cost_for_time: &Vec<UnionRange>, time_left: i32)
     return None;
 }
 
+fn is_wall_id(id: i32) -> bool {
+    if id > WALL_ID {
+        return true;
+    }
+    return false;
+}
+
+fn get_all_ids_from_union_range(union_range: &UnionRange, id_to_union_range_mapping: &HashMap<i32, &UnionRange>, all_ids: &mut HashSet<i32>) {
+    for id in union_range.uses_ranges.iter() {
+        all_ids.insert(*id);
+        Self::get_all_ids_from_union_range(id_to_union_range_mapping[&id], id_to_union_range_mapping, all_ids);
+    }
+}
+
+fn is_unvisited_range(union_range: &UnionRange, visited: &mut HashSet<i32>) -> bool {
+    for range_id in union_range.uses_ranges.iter() {
+        if visited.contains(range_id) {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn visit_range(ids: &HashSet<i32>, visited: &mut HashSet<i32>) {
+    for range_id in ids.iter() {
+        visited.insert(*range_id);
+    }
+}
+
 fn zero_one_knapsack_recurse<'a>(
-    lowest_cost_for_time: &mut Vec<UnionRange>, walls: &'a HashSet<TimeRange>, time_left : i32, visited: &mut HashSet<i32>, id: &mut i32) -> 
-    HashSet<TimeRange> {
-    // println!("visited = {:?} time_left = {}", visited, time_left);
+    time_left : i32,
+    lowest_cost_for_time: &mut Vec<UnionRange>,
+    walls: &'a mut Vec<UnionRange>,
+    visited: &mut HashSet<i32>,
+    id_to_union_range_mapping: &mut HashMap<i32, &UnionRange>) {
 
     for time_cost_range in lowest_cost_for_time.iter() {
-        if visited.contains(&time_cost_range.range.id) {
+        if !Self::is_unvisited_range(time_cost_range, visited) {
             continue;
         }
-        let mut invalid = false;
-        for range_id in time_cost_range.uses_ranges.iter() {
-            if visited.contains(range_id) {
-                invalid = true;
-                break;
-            }
-        }
-        if invalid {
-            continue;
-        }
-        let (ltime, htime, _cost) = (time_cost_range.range.low, time_cost_range.range.high, time_cost_range.range.cost);
+        let (ltime, htime, _cost) = (time_cost_range.low, time_cost_range.high, time_cost_range.cost);
         if time_left >= ltime && time_left <= htime {
             // We know that in this range of time, this is the minimum cost.
-            for range_id in time_cost_range.uses_ranges.iter() {
-                visited.insert(*range_id);
-            }
-            visited.insert(time_cost_range.range.id);
-            return Default::default();
+            Self::visit_range(&time_cost_range.uses_ranges, visited);
+            return;
         }
     }
 
-
-    let mut to_remove_walls: HashSet<TimeRange> = Default::default();
+    let mut to_remove_walls: Vec<UnionRange> = Default::default();
     let mut output_tr: UnionRange = Default::default();
-    output_tr.range.id = TEMP_ID;
-    output_tr.range.cost = i32::pow(10, 9);
+    output_tr.id = TEMP_ID;
+    output_tr.cost = i32::pow(10, 9);
     for wall in walls.iter() {
-        if wall.high >= time_left {
-            if wall.cost < output_tr.range.cost {
+        if !visited.contains(&wall.id) {
+            if wall.high >= time_left && wall.cost < output_tr.cost {
                 to_remove_walls.clear();
-                to_remove_walls.insert(wall.clone());
-                output_tr.range.low = time_left;
-                output_tr.range.high = wall.high;
-                output_tr.range.cost = wall.cost;
+                to_remove_walls.push(wall.clone());
+                output_tr.id = wall.id;
+                output_tr.low = time_left;
+                output_tr.high = wall.high;
+                output_tr.cost = wall.cost;
             }
         }
     }
 
-    let mut newline: bool = false;
     for pointer in 1..time_left {
         let a_part = pointer;
         let b_part = time_left - pointer;
-        let a_to_remove = Self::zero_one_knapsack_recurse(lowest_cost_for_time, walls, a_part, visited, id);
-        let mut to_send : HashSet<TimeRange> = Default::default();
-        for x in walls.difference(&a_to_remove) {
-            to_send.insert(x.clone());
-        }
-        // println!("visited = {:?} walls_to_remove = {:?}", visited, a_to_remove);
-        let b_to_remove = Self::zero_one_knapsack_recurse(lowest_cost_for_time, &to_send, b_part, visited, id);
+        Self::zero_one_knapsack_recurse(a_part, lowest_cost_for_time, walls, visited, id_to_union_range_mapping);
+        // println!("visited = {:?}", visited);
+        Self::zero_one_knapsack_recurse(b_part, lowest_cost_for_time, walls, visited, id_to_union_range_mapping);
         let a_cost = Self::extract_cost_from_vec(lowest_cost_for_time, a_part).unwrap();
         let b_cost = Self::extract_cost_from_vec(lowest_cost_for_time, b_part).unwrap();
 
-        println!("a part = {} cost = {} b part = {} cost = {}", a_part, b_part, a_cost.range.cost, b_cost.range.cost);
-        if a_cost.range.cost + b_cost.range.cost < output_tr.range.cost {
-            newline = true;
-            output_tr.range.cost = a_cost.range.cost + b_cost.range.cost;
-            output_tr.range.low = time_left;
-            output_tr.range.high = a_cost.range.high + b_cost.range.high;
+        println!("a part = {} cost = {} b part = {} cost = {}", a_part, b_part, a_cost.cost, b_cost.cost);
+        if a_cost.cost + b_cost.cost < output_tr.cost {
+            output_tr.id = TEMP_ID;
+            output_tr.cost = a_cost.cost + b_cost.cost;
+            output_tr.low = time_left;
+            output_tr.high = a_cost.high + b_cost.high;
             output_tr.uses_ranges.clear();
-            for x in a_cost.uses_ranges.union(&b_cost.uses_ranges) {
-                output_tr.uses_ranges.insert(*x);
-            }
-            for x in visited.iter() {
-                output_tr.uses_ranges.insert(*x);
-            }
-            println!("time_left = {} min is from {} and {} a_TimeRange = {:?} b_TimeRange = {:?}",time_left, a_part, b_part, a_cost, b_cost);
-            to_remove_walls.clear();
-            for x in a_to_remove.union(&b_to_remove) {
-                to_remove_walls.insert(x.clone());
-            }
+            output_tr.uses_ranges.insert(a_cost.id);
+            output_tr.uses_ranges.insert(b_cost.id);
+            println!("time_left = {} min is from {} and {} a_UnionRange = {:?} b_UnionRange = {:?}",time_left, a_part, b_part, a_cost, b_cost);
         }
         visited.clear();
     }
 
     // So our input time was "time_left" but the minimum cost here covers a range up to min_cost.time.
-    if (Self::extract_cost_from_vec(lowest_cost_for_time, time_left).is_none()) {
-        *id += 1;
+    if Self::extract_cost_from_vec(lowest_cost_for_time, time_left).is_none() {
+        let mut ids: HashSet<i32> = output_tr.uses_ranges.clone();
+        for parent_id in output_tr.uses_ranges.iter() {
+            let union_range = id_to_union_range_mapping[parent_id];
+            Self::get_all_ids_from_union_range(union_range, id_to_union_range_mapping, &mut ids);
+        }
+
+        if Self::is_wall_id(output_tr.id) {
+            walls.retain(|x| x.id != output_tr.id);
+        }
+
+        unsafe { GLOBAL_ID += 1 };
         lowest_cost_for_time.push(
-            UnionRange {
-                range : TimeRange {
-                id : *id,
-                low : output_tr.range.low,
-                high : output_tr.range.high,
-                cost : output_tr.range.cost
-            },
-            uses_ranges : output_tr.uses_ranges.clone(),
+        UnionRange {
+            id : unsafe { GLOBAL_ID },
+            low : output_tr.low,
+            high : output_tr.high,
+            cost : output_tr.cost,
+            uses_ranges : ids,
         });
     }
-    if newline {
-        println!("\n");
-    }
-    return to_remove_walls;
 }
 
-
 fn zero_one_knapsack_iterative(
-    mut sorted_container : &mut HashSet<TimeRange>, mut id: &mut i32) -> i32
+    mut sorted_container : &mut Vec<UnionRange>) -> i32
 {
     let n: i32 = sorted_container.len().try_into().unwrap();
     let mut lowest_cost_for_time: Vec<UnionRange> = Default::default();
 
 
     let mut visited: HashSet<i32> = Default::default();
+    let mut id_to_union_range_mapping: HashMap<i32, &UnionRange> = Default::default();
     let mut time_left = 1;
-    let mut time_elapsed = 0;
     while time_left <= n {
-        // println!("[{}][{}]", current, remaining);
-        let walls_painted =
-        Self::zero_one_knapsack_recurse(&mut lowest_cost_for_time, &mut sorted_container, time_left, &mut visited, &mut id);
-        let mut copy: HashSet<TimeRange> = Default::default();
-        for x in walls_painted {
-            copy.insert(x.clone());
-        }
-        println!("\nto remove = {:?}", copy);
-
-        sorted_container.retain(|wall| {
-            return !(copy.contains(wall));
-        });
-        println!("for time = {} \nlowest costs = {:?}\n", time_left, lowest_cost_for_time);
-        // Can clear the "visited" set here, because we can reuse groups.
         visited.clear();
-
+        // println!("[{}][{}]", current, remaining);
+        Self::zero_one_knapsack_recurse(time_left, &mut lowest_cost_for_time, &mut sorted_container, &mut visited, &mut id_to_union_range_mapping);
+        println!("for time = {} \nlowest costs = {:?}\n", time_left, lowest_cost_for_time);
         time_left += 1;
         println!("time left = {}", time_left);
     }
     
     for time_cost_range in lowest_cost_for_time.iter() {
-        let (ltime, htime, _cost) = (time_cost_range.range.low, time_cost_range.range.high, time_cost_range.range.cost);
+        let (ltime, htime, _cost) = (time_cost_range.low, time_cost_range.high, time_cost_range.cost);
         if n >= ltime && n <= htime {
-            return time_cost_range.range.cost;
+            return time_cost_range.cost;
         }
     }
     return 0;
 }
 
-pub fn paint_walls(mut cost: Vec<i32>, time: Vec<i32>) -> i32 {
+pub fn paint_walls(cost: Vec<i32>, time: Vec<i32>) -> i32 {
         // The paid painter picks the wall with the lowest cost.
         // If there are more than one wall with lowest cost, pick
         // the one that takes more time.
         let total_size : i32 = cost.len().try_into().unwrap();
 
         let mut i : usize = 0;
-        let mut sorted_container : HashSet<TimeRange> = Default::default();
+        let mut sorted_container : Vec<UnionRange> = Default::default();
         let mut id: i32 = WALL_ID;
         while i < total_size.try_into().unwrap() {
             let mut painting_time : i32 = *time.get(i).unwrap();
@@ -225,22 +188,20 @@ pub fn paint_walls(mut cost: Vec<i32>, time: Vec<i32>) -> i32 {
                 painting_time = total_size;
             }
             id += 1;
-            let to_push = TimeRange {
+            let to_push = UnionRange {
                 id : id,
                 cost: *cost.get(i).unwrap(),
                 low : painting_time + 1,
                 high : painting_time + 1,
+                uses_ranges: Default::default(),
             };
-            sorted_container.insert(to_push);
+            sorted_container.push(to_push);
             // println!("At index {} sorted container = {:?}", i, sorted_container);
             i += 1;
         }
 
         println!("Sorted container {:?}", sorted_container);
-
-        // return Self::zero_one_knapsack(&sorted_container, 0, 0, total_size, &mut visited).unwrap();
-        id = 0;
-        return Self::zero_one_knapsack_iterative(&mut sorted_container, id.borrow_mut());
+        return Self::zero_one_knapsack_iterative(&mut sorted_container);
     }
 }
 
