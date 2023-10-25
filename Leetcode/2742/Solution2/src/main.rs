@@ -40,14 +40,25 @@ fn is_wall_id(id: i32) -> bool {
     return false;
 }
 
-fn get_all_ids_from_union_range(union_range: &UnionRange, id_to_union_range_mapping: &HashMap<i32, &UnionRange>, all_ids: &mut HashSet<i32>) {
+fn get_all_ids_from_union_range(union_range: UnionRange, id_to_union_range_mapping: &mut HashMap<i32, UnionRange>, all_ids: &mut HashSet<i32>) {
+    if union_range.id != TEMP_ID {
+        all_ids.insert(union_range.id);
+    }
     for id in union_range.uses_ranges.iter() {
         all_ids.insert(*id);
-        Self::get_all_ids_from_union_range(id_to_union_range_mapping[&id], id_to_union_range_mapping, all_ids);
+        if id_to_union_range_mapping.contains_key(id) {
+            let mut x = id_to_union_range_mapping[&id].clone();
+            Self::get_all_ids_from_union_range(x, id_to_union_range_mapping, all_ids);
+        } else {
+            println!("Trying to extract ids from unknown id {}", id);
+        }
     }
 }
 
 fn is_unvisited_range(union_range: &UnionRange, visited: &mut HashSet<i32>) -> bool {
+    if visited.contains(&union_range.id) {
+        return false;
+    }
     for range_id in union_range.uses_ranges.iter() {
         if visited.contains(range_id) {
             return false;
@@ -56,19 +67,23 @@ fn is_unvisited_range(union_range: &UnionRange, visited: &mut HashSet<i32>) -> b
     return true;
 }
 
-fn visit_range(ids: &HashSet<i32>, visited: &mut HashSet<i32>) {
-    for range_id in ids.iter() {
+fn visit_range(range: &UnionRange, visited: &mut HashSet<i32>) {
+    if range.id != TEMP_ID {
+        visited.insert(range.id);
+    }
+    for range_id in range.uses_ranges.iter() {
         visited.insert(*range_id);
     }
 }
 
-fn zero_one_knapsack_recurse<'a>(
+fn zero_one_knapsack_recurse (
     time_left : i32,
-    lowest_cost_for_time: &mut Vec<UnionRange>,
-    walls: &'a mut Vec<UnionRange>,
+    mut lowest_cost_for_time: &mut Vec<UnionRange>,
+    walls: &mut Vec<UnionRange>,
     visited: &mut HashSet<i32>,
-    id_to_union_range_mapping: &mut HashMap<i32, &UnionRange>) {
-
+    mut id_to_union_range_mapping: &mut HashMap<i32, UnionRange>,
+    recursion_cached_results: &mut HashMap<(i32, i32), UnionRange>) -> UnionRange {
+    // println!("time left = {}", time_left);
     for time_cost_range in lowest_cost_for_time.iter() {
         if !Self::is_unvisited_range(time_cost_range, visited) {
             continue;
@@ -76,8 +91,8 @@ fn zero_one_knapsack_recurse<'a>(
         let (ltime, htime, _cost) = (time_cost_range.low, time_cost_range.high, time_cost_range.cost);
         if time_left >= ltime && time_left <= htime {
             // We know that in this range of time, this is the minimum cost.
-            Self::visit_range(&time_cost_range.uses_ranges, visited);
-            return;
+            Self::visit_range(time_cost_range, visited);
+            return time_cost_range.clone();
         }
     }
 
@@ -101,32 +116,49 @@ fn zero_one_knapsack_recurse<'a>(
     for pointer in 1..time_left {
         let a_part = pointer;
         let b_part = time_left - pointer;
-        Self::zero_one_knapsack_recurse(a_part, lowest_cost_for_time, walls, visited, id_to_union_range_mapping);
-        // println!("visited = {:?}", visited);
-        Self::zero_one_knapsack_recurse(b_part, lowest_cost_for_time, walls, visited, id_to_union_range_mapping);
-        let a_cost = Self::extract_cost_from_vec(lowest_cost_for_time, a_part).unwrap();
-        let b_cost = Self::extract_cost_from_vec(lowest_cost_for_time, b_part).unwrap();
-
-        println!("a part = {} cost = {} b part = {} cost = {}", a_part, b_part, a_cost.cost, b_cost.cost);
-        if a_cost.cost + b_cost.cost < output_tr.cost {
-            output_tr.id = TEMP_ID;
-            output_tr.cost = a_cost.cost + b_cost.cost;
-            output_tr.low = time_left;
-            output_tr.high = a_cost.high + b_cost.high;
-            output_tr.uses_ranges.clear();
-            output_tr.uses_ranges.insert(a_cost.id);
-            output_tr.uses_ranges.insert(b_cost.id);
-            println!("time_left = {} min is from {} and {} a_UnionRange = {:?} b_UnionRange = {:?}",time_left, a_part, b_part, a_cost, b_cost);
+        if !recursion_cached_results.contains_key(&(a_part, b_part)) {
+            let a_cost = Self::zero_one_knapsack_recurse(a_part, lowest_cost_for_time,
+                walls, visited, id_to_union_range_mapping, recursion_cached_results);
+            // println!("a part = {} b part = {} visited = {:?}", a_part, b_part, visited);
+            let b_cost = Self::zero_one_knapsack_recurse(b_part, lowest_cost_for_time,
+                walls, visited, id_to_union_range_mapping, recursion_cached_results);
+            // println!("time_left = {} min is from {} and {} a_UnionRange = {:?} b_UnionRange = {:?}",time_left, a_part, b_part, a_cost, b_cost);
+            // Cache the results.
+            let mut temp: UnionRange = Default::default();
+            temp.id = TEMP_ID;
+            temp.cost = a_cost.cost + b_cost.cost;
+            temp.low = time_left;
+            temp.high = a_cost.high + b_cost.high;
+            println!("a part = {} b part = {} a_cost = {} b_cost = {}", a_part, b_part, a_cost.cost, b_cost.cost);
+            let mut a_ids: HashSet<i32> = Default::default();
+            Self::get_all_ids_from_union_range(a_cost, id_to_union_range_mapping, &mut a_ids);
+            let mut b_ids: HashSet<i32> = Default::default();
+            Self::get_all_ids_from_union_range(b_cost, id_to_union_range_mapping, &mut b_ids);
+            for id in a_ids.union(&b_ids) {
+                temp.uses_ranges.insert(*id);
+            }
+            recursion_cached_results.insert((a_part, b_part), temp.clone());
+            if temp.cost < output_tr.cost {
+                output_tr = temp.clone();
+            }
+        } else if (recursion_cached_results[&(a_part, b_part)].cost < output_tr.cost) {
+            output_tr = recursion_cached_results[&(a_part, b_part)].clone();
         }
+
         visited.clear();
     }
 
-    // So our input time was "time_left" but the minimum cost here covers a range up to min_cost.time.
+    // We have found a new lowest cost combination over an interval.
     if Self::extract_cost_from_vec(lowest_cost_for_time, time_left).is_none() {
         let mut ids: HashSet<i32> = output_tr.uses_ranges.clone();
+        if output_tr.id != TEMP_ID {
+            ids.insert(output_tr.id);
+        }
         for parent_id in output_tr.uses_ranges.iter() {
-            let union_range = id_to_union_range_mapping[parent_id];
-            Self::get_all_ids_from_union_range(union_range, id_to_union_range_mapping, &mut ids);
+            if id_to_union_range_mapping.contains_key(parent_id) {
+                let mut union_range = id_to_union_range_mapping[parent_id].clone();
+                Self::get_all_ids_from_union_range(union_range, id_to_union_range_mapping, &mut ids);
+            }
         }
 
         if Self::is_wall_id(output_tr.id) {
@@ -134,7 +166,7 @@ fn zero_one_knapsack_recurse<'a>(
         }
 
         unsafe { GLOBAL_ID += 1 };
-        lowest_cost_for_time.push(
+        lowest_cost_for_time.insert(0,
         UnionRange {
             id : unsafe { GLOBAL_ID },
             low : output_tr.low,
@@ -142,7 +174,12 @@ fn zero_one_knapsack_recurse<'a>(
             cost : output_tr.cost,
             uses_ranges : ids,
         });
+
+        id_to_union_range_mapping.insert(lowest_cost_for_time[0].id, lowest_cost_for_time[0].clone());
     }
+
+    Self::visit_range(&output_tr, visited);
+    return output_tr;
 }
 
 fn zero_one_knapsack_iterative(
@@ -153,17 +190,19 @@ fn zero_one_knapsack_iterative(
 
 
     let mut visited: HashSet<i32> = Default::default();
-    let mut id_to_union_range_mapping: HashMap<i32, &UnionRange> = Default::default();
+    let mut id_to_union_range_mapping: HashMap<i32, UnionRange> = Default::default();
+    let mut recursion_cached_results: HashMap<(i32, i32), UnionRange> = Default::default();
     let mut time_left = 1;
     while time_left <= n {
         visited.clear();
         // println!("[{}][{}]", current, remaining);
-        Self::zero_one_knapsack_recurse(time_left, &mut lowest_cost_for_time, &mut sorted_container, &mut visited, &mut id_to_union_range_mapping);
-        println!("for time = {} \nlowest costs = {:?}\n", time_left, lowest_cost_for_time);
+        Self::zero_one_knapsack_recurse(time_left, &mut lowest_cost_for_time, &mut sorted_container,
+            &mut visited, &mut id_to_union_range_mapping, &mut recursion_cached_results);
+        println!("for time = {} \nlowest costs = {:?}\n", time_left, &lowest_cost_for_time);
         time_left += 1;
         println!("time left = {}", time_left);
     }
-    
+    println!("lowest costs = {:?}\n", &lowest_cost_for_time);
     for time_cost_range in lowest_cost_for_time.iter() {
         let (ltime, htime, _cost) = (time_cost_range.low, time_cost_range.high, time_cost_range.cost);
         if n >= ltime && n <= htime {
