@@ -13,7 +13,7 @@ impl Solution {
         }
 
         for i in 0..n {
-            for j in i+1..n {
+            for j in i..n {
                 if hashed_dict.contains(&s[i..j+1]) {
                     let v = starting_from.get_mut(&i);
                     if v.is_none() {
@@ -85,8 +85,8 @@ impl FileHandler {
     fn tokenizeString(&self, s: &mut String) -> Vec<String> {
         // We expect a list of comma separated values.
         // println!("{}", s);
-        s.retain(|ch| ch != '[' && ch != ']');
-        // println!("after retain = {:?}", s);
+        s.retain(|ch| ch != '[' && ch != ']' && ch != '\"' && ch != ' ');
+        println!("after retain = {:?}", s);
         let values : Vec<String> = s.split(',').map(String::from).collect();
         // println!("values = {:?}", values);
         values
