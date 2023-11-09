@@ -83,12 +83,10 @@ class Solution:
             known_paths.add(Path(dest, (edge[1], edge[0]), frozenset({edge[0], edge[1]})))
 
         for i in range(2, n + 1):
+            visited.clear()
             if len(known_paths) == 0:
                 return -1
-            print(f'\nlength = {i} number of paths = {len(known_paths)}')
-            for path in known_paths:
-                print(f'length of path = {len(path.visited)}')
-                break
+            #print(f'\nlength = {i} number of paths = {len(known_paths)} size of visited = {len(visited)}')
             if self.findCycle(known_paths, connections, n, visited):
                 return i
         return -1
