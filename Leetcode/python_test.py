@@ -96,3 +96,32 @@ i.age = 44
 print(i.age)
 del i.age
 #print(i.age)
+
+
+def findCycle(known_paths: set[int]):
+    known_paths = {1001, 1002, 1003, 1004, 1005}
+    return
+
+def findCycleWithList(known_paths: set[int]):
+    known_paths = [1001, 1002, 1003, 1004, 1005]
+    return
+
+known_paths = {1, 2, 3, 4, 5}
+findCycle(known_paths)
+print(known_paths)
+
+listp = [1, 2, 3, 4, 5]
+findCycleWithList(listp)
+print(listp)
+
+def pythonParameterPassingIsWeird(known_paths: set[int]):
+    x = {1001, 1002, 1003, 1004, 1005}
+    # This breaks everything.
+    # known_paths = set()
+    # Essentially if you reassign a passed variable, python does a copy by value.
+    known_paths.clear()
+    for num in x:
+        known_paths.add(num)
+
+pythonParameterPassingIsWeird(known_paths)
+print(known_paths)
