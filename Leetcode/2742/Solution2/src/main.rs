@@ -40,22 +40,20 @@ fn is_wall_id(id: i32) -> bool {
     return false;
 }
 
-fn get_all_ids_from_union_range(union_range: UnionRange, id_to_union_range_mapping: &mut HashMap<i32, UnionRange>, all_ids: &mut HashSet<i32>) {
+fn get_all_ids_from_union_range(union_range: &UnionRange, id_to_union_range_mapping: &HashMap<i32, UnionRange>, all_ids: &mut HashSet<i32>) {
     if union_range.id != TEMP_ID {
         all_ids.insert(union_range.id);
     }
     for id in union_range.uses_ranges.iter() {
         all_ids.insert(*id);
         if id_to_union_range_mapping.contains_key(id) {
-            let mut x = id_to_union_range_mapping[&id].clone();
+            let mut x = &id_to_union_range_mapping[&id];
             Self::get_all_ids_from_union_range(x, id_to_union_range_mapping, all_ids);
-        } else {
-            // println!("Trying to extract ids from unknown id {}", id);
         }
     }
 }
 
-fn is_unvisited_range(union_range: &UnionRange, visited: &mut HashSet<i32>) -> bool {
+fn is_unvisited_range(union_range: &UnionRange, visited: &HashSet<i32>, id_to_union_range_mapping: &HashMap<i32, UnionRange>) -> bool {
     if visited.contains(&union_range.id) {
         return false;
     }
@@ -63,16 +61,27 @@ fn is_unvisited_range(union_range: &UnionRange, visited: &mut HashSet<i32>) -> b
         if visited.contains(range_id) {
             return false;
         }
+        if id_to_union_range_mapping.contains_key(range_id) {
+            let mut x = &id_to_union_range_mapping[&range_id];
+            if Self::is_unvisited_range(x, visited, id_to_union_range_mapping) {
+                return false;
+            }    
+        }
     }
     return true;
 }
 
-fn visit_range(range: &UnionRange, visited: &mut HashSet<i32>) {
+fn visit_range(range: &UnionRange, visited: &mut HashSet<i32>, id_to_union_range_mapping: &HashMap<i32, UnionRange>) {
     if range.id != TEMP_ID {
         visited.insert(range.id);
     }
     for range_id in range.uses_ranges.iter() {
-        visited.insert(*range_id);
+        if id_to_union_range_mapping.contains_key(range_id) {
+            let mut x = &id_to_union_range_mapping[&range_id];
+            Self::visit_range(x, visited, id_to_union_range_mapping);
+        } else {
+            visited.insert(*range_id);
+        }
     }
 }
 
@@ -91,17 +100,17 @@ fn zero_one_knapsack_recurse (
         prepend += "\t";
     }
     for time_cost_range in lowest_cost_for_time.iter() {
-        if !Self::is_unvisited_range(time_cost_range, visited) {
+        if !Self::is_unvisited_range(time_cost_range, visited, id_to_union_range_mapping) {
             continue;
         }
         let (ltime, htime, _cost) = (time_cost_range.low, time_cost_range.high, time_cost_range.cost);
         if time_left >= ltime && time_left <= htime {
             // For debugging.
             let mut all_ids: HashSet<i32> = Default::default();
-            Self::get_all_ids_from_union_range(time_cost_range.clone(), id_to_union_range_mapping, &mut all_ids);
+            Self::get_all_ids_from_union_range(time_cost_range, id_to_union_range_mapping, &mut all_ids);
             println!("{}Looking for time left = {} visited is {:?} and ids used by matching range is {:?}",prepend, time_left, visited, all_ids);
             // We know that in this range of time, this is the minimum cost.
-            Self::visit_range(time_cost_range, visited);
+            Self::visit_range(time_cost_range, visited, id_to_union_range_mapping);
             return time_cost_range.clone();
         }
     }
@@ -142,18 +151,19 @@ fn zero_one_knapsack_recurse (
             temp.low = time_left;
             temp.high = a_cost.high + b_cost.high;
             let mut a_ids: HashSet<i32> = Default::default();
-            Self::get_all_ids_from_union_range(a_cost, id_to_union_range_mapping, &mut a_ids);
+            Self::get_all_ids_from_union_range(&a_cost, id_to_union_range_mapping, &mut a_ids);
             let mut b_ids: HashSet<i32> = Default::default();
-            Self::get_all_ids_from_union_range(b_cost, id_to_union_range_mapping, &mut b_ids);
+            Self::get_all_ids_from_union_range(&b_cost, id_to_union_range_mapping, &mut b_ids);
             println!("{} time_left = {} a part = {} b part = {} a_cost = {} a_ids = {:?} b_cost = {} b_ids = {:?}", prepend, time_left, a_part, b_part, print_a_cost, a_ids, print_b_cost, b_ids);
             for id in a_ids.union(&b_ids) {
                 temp.uses_ranges.insert(*id);
             }
-            recursion_cached_results.insert((a_part, b_part), temp);
+            recursion_cached_results.insert((a_part, b_part), temp.clone());
+            recursion_cached_results.insert((b_part, a_part), temp);
             if recursion_cached_results[&(a_part, b_part)].cost < output_tr.cost {
                 output_tr = recursion_cached_results[&(a_part, b_part)].clone();
             }    
-        } else if Self::is_unvisited_range(&recursion_cached_results[&(a_part, b_part)], visited) {
+        } else if Self::is_unvisited_range(&recursion_cached_results[&(a_part, b_part)], visited, id_to_union_range_mapping) {
             if recursion_cached_results[&(a_part, b_part)].cost < output_tr.cost {
                 output_tr = recursion_cached_results[&(a_part, b_part)].clone();
             }
@@ -170,7 +180,7 @@ fn zero_one_knapsack_recurse (
         }
 
         let mut ids: HashSet<i32> = Default::default();
-        Self::get_all_ids_from_union_range(output_tr.clone(), id_to_union_range_mapping, &mut ids);
+        Self::get_all_ids_from_union_range(&output_tr, id_to_union_range_mapping, &mut ids);
 
         unsafe { GLOBAL_ID += 1 };
         lowest_cost_for_time.insert(0,
@@ -183,10 +193,10 @@ fn zero_one_knapsack_recurse (
         });
 
         id_to_union_range_mapping.insert(lowest_cost_for_time[0].id, lowest_cost_for_time[0].clone());
-        Self::visit_range(&lowest_cost_for_time[0], visited);
+        Self::visit_range(&lowest_cost_for_time[0], visited, id_to_union_range_mapping);
         return lowest_cost_for_time[0].clone();
     } else {
-        Self::visit_range(&output_tr, visited);
+        Self::visit_range(&output_tr, visited, id_to_union_range_mapping);
         return output_tr;
     }
 }
