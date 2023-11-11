@@ -63,7 +63,7 @@ fn is_unvisited_range(union_range: &UnionRange, visited: &HashSet<i32>, id_to_un
         }
         if id_to_union_range_mapping.contains_key(range_id) {
             let mut x = &id_to_union_range_mapping[&range_id];
-            if Self::is_unvisited_range(x, visited, id_to_union_range_mapping) {
+            if !Self::is_unvisited_range(x, visited, id_to_union_range_mapping) {
                 return false;
             }    
         }
@@ -101,6 +101,7 @@ fn zero_one_knapsack_recurse (
     }
     for time_cost_range in lowest_cost_for_time.iter() {
         if !Self::is_unvisited_range(time_cost_range, visited, id_to_union_range_mapping) {
+            // println!("{}Range {:?} is visited. We are trying to find matches for time_left = {} and visited is {:?}", prepend, time_cost_range, time_left, visited);
             continue;
         }
         let (ltime, htime, _cost) = (time_cost_range.low, time_cost_range.high, time_cost_range.cost);
@@ -108,13 +109,13 @@ fn zero_one_knapsack_recurse (
             // For debugging.
             let mut all_ids: HashSet<i32> = Default::default();
             Self::get_all_ids_from_union_range(time_cost_range, id_to_union_range_mapping, &mut all_ids);
-            println!("{}Looking for time left = {} visited is {:?} and ids used by matching range is {:?}",prepend, time_left, visited, all_ids);
+            // println!("{}Looking for time left = {} visited is {:?} and ids used by matching range is {:?}",prepend, time_left, visited, all_ids);
             // We know that in this range of time, this is the minimum cost.
             Self::visit_range(time_cost_range, visited, id_to_union_range_mapping);
             return time_cost_range.clone();
         }
     }
-    println!("{}For time = {} no match found in lowest_cost", prepend, time_left);
+    //println!("{}For time = {} no match found in lowest_cost", prepend, time_left);
     let mut output_tr: UnionRange = Default::default();
     output_tr.id = TEMP_ID;
     output_tr.cost = i32::pow(10, 9);
@@ -129,19 +130,23 @@ fn zero_one_knapsack_recurse (
         }
     }
 
-    println!("{}For time = {} match found in walls with cost = {} uses_range = {:?}", prepend, time_left, output_tr.cost, output_tr.uses_ranges);
+    //if output_tr.id != TEMP_ID {
+    //    println!("{}For time = {} match found in walls with cost = {} uses_range = {:?}", prepend, time_left, output_tr.cost, output_tr.uses_ranges);
+    //}
+
     let fixed_visited = visited.clone();
     for pointer in 1..time_left {
         std::io::Write::flush(&mut std::io::stdout()).unwrap();
         let a_part = pointer;
         let b_part = time_left - pointer;
-        if !recursion_cached_results.contains_key(&(a_part, b_part)) {
+        let results_valid: bool = recursion_cached_results.contains_key(&(a_part, b_part)) && Self::is_unvisited_range(&recursion_cached_results[&(a_part, b_part)], visited, id_to_union_range_mapping);
+        if !results_valid {
+            println!("{}time_left = {} a part = {} b part = {} visited = {:?}",prepend, time_left, a_part, b_part, visited);
             let a_cost = Self::zero_one_knapsack_recurse(a_part, lowest_cost_for_time,
                 walls, visited, id_to_union_range_mapping, recursion_cached_results, depth + 1);
-            println!("{}time_left = {} a part = {} b part = {} visited = {:?}",prepend, time_left, a_part, b_part, visited);
             let b_cost = Self::zero_one_knapsack_recurse(b_part, lowest_cost_for_time,
                 walls, visited, id_to_union_range_mapping, recursion_cached_results, depth + 1);
-            // println!("{}time_left = {} min is from {} and {} a_UnionRange = {:?} b_UnionRange = {:?}", prepend,time_left, a_part, b_part, a_cost, b_cost);
+            println!("{}time_left = {} min is from {} and {} a_UnionRange = {:?} b_UnionRange = {:?}", prepend,time_left, a_part, b_part, a_cost, b_cost);
             // Cache the results.
             let mut temp: UnionRange = Default::default();
             temp.id = TEMP_ID;
@@ -154,18 +159,17 @@ fn zero_one_knapsack_recurse (
             Self::get_all_ids_from_union_range(&a_cost, id_to_union_range_mapping, &mut a_ids);
             let mut b_ids: HashSet<i32> = Default::default();
             Self::get_all_ids_from_union_range(&b_cost, id_to_union_range_mapping, &mut b_ids);
-            println!("{} time_left = {} a part = {} b part = {} a_cost = {} a_ids = {:?} b_cost = {} b_ids = {:?}", prepend, time_left, a_part, b_part, print_a_cost, a_ids, print_b_cost, b_ids);
+            // println!("{} time_left = {} a part = {} b part = {} a_cost = {} a_ids = {:?} b_cost = {} b_ids = {:?}", prepend, time_left, a_part, b_part, print_a_cost, a_ids, print_b_cost, b_ids);
             for id in a_ids.union(&b_ids) {
                 temp.uses_ranges.insert(*id);
             }
-            recursion_cached_results.insert((a_part, b_part), temp.clone());
-            recursion_cached_results.insert((b_part, a_part), temp);
+            if temp.cost < output_tr.cost {
+                output_tr = temp.clone();
+            }
+        } else {
+            println!("for time_left = {} we are trying the recursion cached result {}", time_left, &recursion_cached_results[&(a_part, b_part)].cost);
             if recursion_cached_results[&(a_part, b_part)].cost < output_tr.cost {
-                output_tr = recursion_cached_results[&(a_part, b_part)].clone();
-            }    
-        } else if Self::is_unvisited_range(&recursion_cached_results[&(a_part, b_part)], visited, id_to_union_range_mapping) {
-            if recursion_cached_results[&(a_part, b_part)].cost < output_tr.cost {
-                output_tr = recursion_cached_results[&(a_part, b_part)].clone();
+                    output_tr = recursion_cached_results[&(a_part, b_part)].clone();
             }
         }
 
@@ -201,6 +205,46 @@ fn zero_one_knapsack_recurse (
     }
 }
 
+fn cache_optimal_results(
+    time_left : i32,
+    lowest_cost_for_time: &mut Vec<UnionRange>,
+    walls: &mut Vec<UnionRange>,
+    visited: &mut HashSet<i32>,
+    id_to_union_range_mapping: &mut HashMap<i32, UnionRange>,
+    recursion_cached_results: &mut HashMap<(i32, i32), UnionRange>
+) {
+        for i in 1..time_left {
+            for j in 1..time_left - i {
+                let a_part = i;
+                let b_part = j;
+                let results_valid: bool = recursion_cached_results.contains_key(&(a_part, b_part)) ||
+                    recursion_cached_results.contains_key(&(b_part, a_part));
+                if !results_valid {
+                    visited.clear();
+                    let a_cost = Self::zero_one_knapsack_recurse(a_part, lowest_cost_for_time,
+                        walls, visited, id_to_union_range_mapping, recursion_cached_results, 0);
+                    let b_cost = Self::zero_one_knapsack_recurse(b_part, lowest_cost_for_time,
+                        walls, visited, id_to_union_range_mapping, recursion_cached_results, 0);
+                    // Cache the results.
+                    let mut temp: UnionRange = Default::default();
+                    temp.id = TEMP_ID;
+                    temp.cost = a_cost.cost + b_cost.cost;
+                    temp.low = time_left;
+                    temp.high = a_cost.high + b_cost.high;
+                    let mut a_ids: HashSet<i32> = Default::default();
+                    Self::get_all_ids_from_union_range(&a_cost, id_to_union_range_mapping, &mut a_ids);
+                    let mut b_ids: HashSet<i32> = Default::default();
+                    Self::get_all_ids_from_union_range(&b_cost, id_to_union_range_mapping, &mut b_ids);
+                    for id in a_ids.union(&b_ids) {
+                        temp.uses_ranges.insert(*id);
+                    }
+                    recursion_cached_results.insert((a_part, b_part), temp.clone());
+                    recursion_cached_results.insert((b_part, a_part), temp.clone());
+                }
+            }
+        }
+    }
+
 fn zero_one_knapsack_iterative(
     mut sorted_container : &mut Vec<UnionRange>) -> i32
 {
@@ -209,6 +253,8 @@ fn zero_one_knapsack_iterative(
     let mut visited: HashSet<i32> = Default::default();
     let mut id_to_union_range_mapping: HashMap<i32, UnionRange> = Default::default();
     let mut recursion_cached_results: HashMap<(i32, i32), UnionRange> = Default::default();
+    Self::cache_optimal_results(n, &mut lowest_cost_for_time, &mut sorted_container,
+        &mut visited, &mut id_to_union_range_mapping, &mut recursion_cached_results);
     let mut time_left = 1;
     while time_left <= n {
         visited.clear();
@@ -254,8 +300,6 @@ pub fn paint_walls(cost: Vec<i32>, time: Vec<i32>) -> i32 {
             // println!("{}At index {} sorted container = {:?}", prepend, i, sorted_container);
             i += 1;
         }
-
-        println!("Sorted container {:?}", sorted_container);
         return Self::zero_one_knapsack_iterative(&mut sorted_container);
     }
 }
@@ -276,10 +320,10 @@ fn main() {
         }*/
     // let cost : Vec<i32> = Vec::from([1,2,3,2]);
     // let time : Vec<i32> = Vec::from([1,2,3,2]);
-    let cost : Vec<i32> = Vec::from([26, 53, 10, 24, 25, 20, 107,51]);
+    //let cost : Vec<i32> = Vec::from([26, 53, 10, 24, 25, 20, 107,51]);
     // Sorted order is 10, 20, 24, 25, 26, [51], [53], [63]
     //                   1  2   1   2   1   1   1   2
-    let time : Vec<i32> = Vec::from([1, 1, 1, 1, 2, 2, 3, 2]);
+    //let time : Vec<i32> = Vec::from([1, 1, 1, 1, 2, 2, 3, 2]);
     // let cost : Vec<i32> = Vec::from([42,8,28,35,21,13,21,35]);
     // let time : Vec<i32> = Vec::from([2,1,1,1,2,1,1,2]);
 
@@ -287,6 +331,9 @@ fn main() {
     // let time : Vec<i32> = Vec::from([1,1,2,2,1,1,2]);
     // let cost = Vec::from([76,25,96,46,85,19,29,88,2,5]);
     // let time = Vec::from([1,2,1,3,1,3,3,3,2,1]);
+    let cost = Vec::from([26,53,10,24,25,20,63,51]);
+    let time = Vec::from([1,1,1,1,2,2,2,1]);
+    // Output: 69, expected: 55.
     // let cost = Vec::from([937,252,716,781,319,198,273,554,140,68,694,583,1080,16,450,229,710,1003,1117,1036,398,874,289,664,600,588,372,1066,375,532,984,328,1067,746]);
     // let time = Vec::from([5,3,1,3,2,1,3,3,5,3,5,5,4,1,3,1,4,4,4,1,5,1,2,3,2,3,3,4,1,3,4,1,1,5]);
     //let cost = Vec::from([41675,90161,42520,2465,108823,98591,49224,46555,131321,216747,7258,6299,169312,168482,130148,226209,197115,15146,55089,187926,78480,111029,149448,67732,54628,196939,25374,194820,14127,85198,97214,134385,56194,238827,35900,121819,208957,107083,238577,150903,126509,76669,60955,46842,158083,116031,32064,63773,120096,216182,153556,34298,145897,157373,78292,176632,159220,18749,224908,12650,232288,62610,5937,34619,99324,66938,213520,94116,133113,234093,202342,42557,170595,77540,40425,240793,136442,185747,19610,1279,126431,139526,140677,69081,119353,139199,55915,8350,107974,27172,180275,81994,162221,238364,218745,125032,110797,236061,125937,127927,186660,122670,132524,122477,126795,67347,48530,89577,125199,18530,214409,174298,74254,235,156489,209119,204785,175568,59549,82607,211991,153185,49666,129143,80511,33293,164404,229008,123974,226738,181846,62761,231278,79167,151166,187715,161615,207109,129906,167893,136182,42894,187370,39969,6743,9406,199895,16024,52868,119138,33884,170451,90106,23158,213806,193552,220162,223579,145187,72824,123924,103909,156478,105241,191831,125762,22026,213135,208691,139492,53292,216124,70708,1650,14223,146834,221897,2983,176816,142592,365,210600,92797,31105,140385,235568,16988,227990,87410,241067,229219,29455,235095,206722,33067,173429,173335,138607,195264,8718,180069,89331,82087,99767,210593,139259,230628,107238,69270,205825,222129,177425,233530,49351,55857,114637,80212,154839,152,12556,48684,18577,59045,242480,179325,165081,60876,170269,200253,13845,52579,209733,71088,223880,153760,107584,158823,68056,149410,112971,189975,229610,198299,116694,132896,236773,86703,230248,60016,16671,110518,165120,104334,111329,167568,58512,200481,105990,184663,158805,209591,159629,242966,217879,188151,36999,235805,3040,228087,145443,194727,227111,73716,60646,79701,77113,100063,122301,177805,115432,143504,105642,175829,223260,196590,209454,207756,15755,74830,184973,43249,4335,207433,83486,78888,172208,95841,237159,6382,170429,222212,153605,104335,207908,53476,151336,210360,49543,22342,232660,38247,178316,204946,99128,45026,102119,28955,119544,36304,98984,2378,224462,2305,158430,54224,67209,99644,175093,192855,63489,64096,215267,1162,219501,68560,216480,75965,18008,224154,59903,9444,75839,106329,20074,94729,183253,89182,218736,174058,216584,212835,173260,105726,184756,62870,94841,140979,30982,67675,84299,184896,163217,68378,227342,174141,138283,145291,216402,203876,109546,11123,37547,84335,207552,19054,146820,37754,124850,56560,85718,158882,138056,90513,17456,123409,9271,152276,56958,182559,177419,202995,211580,77668,208993,34950,168743,237430,146632,242385,94324,231793,104808,178101,19059,66441,19733,119659,95080,80720,138340,72267,182732,69323,32725,90967,148902,105132,64905,31616,185103,201046,40202,166635,226570,218536,140330,35,196762,211915,57942,139265,60002,200736,95740,160796,236401,114280,167988,26025,110206,13512,217865,52810,188783,103021,90155,30072,148118,132774,85351,217795,204933,53529,107626,41846,171335,142552,112932,208198,44216,6714,219388,142762,214524,59268,213010,213414,140124,83024,92851,143747,73179,219038,185261,100400,190972,46915,107024,83017,64933,185057,162001,208512,24871,21833,99141,93583,170977,118049,53297,111963,91506,23054]);
