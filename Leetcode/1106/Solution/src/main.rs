@@ -34,6 +34,7 @@ impl Solution {
     }
 
     fn apply_operator(popped_symbols: &Vec<char>, operator: char) -> char {
+//        println!("Applying operator {} to symbols {:?}", operator, popped_symbols);
         let mut result: bool = false;
         if operator == '&' {
             result = Self::and_expr(popped_symbols);
@@ -58,10 +59,12 @@ impl Solution {
         // Pop symbols until we find an opening parantheses.
         // Evaluate the popped symbols. Push the result of the evaluation to the stack, if there are remaining
         // symbols in the expression. Else, return the result.
-        let mut stk : Vec<char> = Vec::with_capacity(expression.len());
+        let mut s = expression.clone();
+        s.retain(|ch| ch != '[' && ch != ']' && ch != '\"' && ch != ' ' && ch != ',');
+        let mut stk : Vec<char> = Vec::with_capacity(s.len());
 
-        for i in 0..expression.len() {
-            let ch: char = expression.as_bytes()[i] as char;
+        for i in 0..s.len() {
+            let ch: char = s.as_bytes()[i] as char;
 
             if ch == ')' {
                 // Pop elements from the stack until we find an opening brace.
@@ -76,9 +79,11 @@ impl Solution {
                 // What is the operator to be applied.
                 let operator: char = stk.pop().unwrap();
                 stk.push(Self::apply_operator(&popped_symbols, operator));
+            } else {
+                stk.push(ch);
             }
-            stk.push(ch);
         }
+
         if stk.pop().unwrap() == 't' {
             return true;
         }
@@ -95,17 +100,14 @@ struct FileHandler {
 }
 
 impl FileHandler {
-    fn tokenizeString(&self, s: &mut String) -> Vec<String> {
+    fn tokenizeString(&self, s: &mut String) -> String {
         // We expect a list of comma separated values.
         // println!("{}", s);
-        s.retain(|ch| ch != '[' && ch != ']' && ch != '\"' && ch != ' ');
-        println!("after retain = {:?}", s);
-        let values : Vec<String> = s.split(',').map(String::from).collect();
-        // println!("values = {:?}", values);
-        values
+        s.retain(|ch| ch != '[' && ch != ']' && ch != '\"' && ch != ' ' && ch != ',');
+        s.to_string()
     }
 
-    pub fn readAndTokenizeInput(&self) -> Vec<Vec<String>> {
+    pub fn readAndTokenizeInput(&self) -> Vec<String> {
         let s : String = self.readFileContents();
 
         let mut result = Vec::new();
@@ -145,7 +147,6 @@ fn main() {
 
     for i in 0..all_lines.len() {
         let s = &all_lines[i];
-        println!("s = {:?}", s);
-        //println!("For s = {:?} answer is {}", s, Solution::parse_bool_expr(s.clone()));
+        println!("For s = {:?} answer is {}", s, Solution::parse_bool_expr(s.clone()));
     }
 }
