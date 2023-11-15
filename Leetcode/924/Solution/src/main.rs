@@ -4,21 +4,21 @@ use std::collections::{HashSet, HashMap};
 use std::convert::TryInto;
 
 impl Solution {
-    fn do_traversal_from(start: i32, connections: mut& HashMap<i32, Vec<i32>>) -> HashSet<i32> {
-        let mut stk: Vec<i32> = Vec::from(start);
+    fn do_traversal_from(start: i32, connections: &mut HashMap<i32, Vec<i32>>) -> HashSet<i32> {
+        let mut stk: Vec<i32> = vec![start];
         let mut out: HashSet<i32> = Default::default();
         out.insert(start);
 
         while stk.len() > 0 {
             let top = stk.pop().unwrap();
 
-            if !connections.contains_key(top) {
+            if !connections.contains_key(&top) {
                 continue;
             }
 
-            for node in connections[top] {
-                if node != top {
-                    stk.push(node);
+            for node in &connections[&top] {
+                if *node != top {
+                    stk.push(*node);
                     out.insert(start);
                 }  
              }
@@ -26,14 +26,16 @@ impl Solution {
 
         return out;
     }
-    pub fn min_malware_spread(graph: Vec<Vec<i32>>, initial: Vec<i32>) -> i32 {
+    pub fn min_malware_spread(graph: &Vec<Vec<i32>>, initial: &Vec<i32>) -> i32 {
         let mut connections: HashMap<i32, Vec<i32>> = Default::default();
         for i in 0..graph.len() {
-            for j in 0..graph[0].len() {
-                if connections.contains_key(i) {
-                    connections[i].push(j);
+            for j in 0..graph[i].len() {
+                let i_32 = i.try_into().unwrap();
+                let j_32 = j.try_into().unwrap();
+                if connections.contains_key(&i_32) {
+                    connections.get_mut(&i_32).unwrap().push(j_32);
                 } else {
-                    connections.insert(i, Vec::from(j));
+                    connections.insert(i_32, vec![j_32]);
                 }
             }
         }
@@ -42,14 +44,14 @@ impl Solution {
         let mut connected_components: HashMap<i32, HashSet<i32>> = Default::default();
         let mut max_components = (0, -1);
         for start in initial {
-            let components = do_traversal_from(start, connections);
-            if max_components[0] < components.len() {
-                max_components = (components.len(), start);
+            let components = Self::do_traversal_from(*start, &mut connections);
+            if max_components.0 < components.len() {
+                max_components = (components.len(), *start);
             }
-            connected_components.insert(start, components);
+            connected_components.insert(*start, components);
         }
 
-        max_components[1]
+        max_components.1
     }
 }
 
@@ -62,17 +64,16 @@ struct FileHandler {
 }
 
 impl FileHandler {
-    fn tokenizeString(&self, s: &mut String) -> Vec<String> {
+    fn tokenizeString(&self, s: &mut String) -> Vec<i32> {
         // We expect a list of comma separated values.
         // println!("{}", s);
         s.retain(|ch| ch != '[' && ch != ']' && ch != '\"' && ch != ' ');
-        println!("after retain = {:?}", s);
-        let values : Vec<String> = s.split(',').map(String::from).collect();
+        let values : Vec<i32> = s.split(',').map(|x| x.parse::<i32>().unwrap()).collect();
         // println!("values = {:?}", values);
         values
     }
 
-    pub fn readAndTokenizeInput(&self) -> Vec<Vec<String>> {
+    pub fn readAndTokenizeInput(&self) -> Vec<Vec<i32>> {
         let s : String = self.readFileContents();
 
         let mut result = Vec::new();
@@ -110,9 +111,11 @@ fn main() {
 
     let all_lines = fh.readAndTokenizeInput();
 
-    for i in 0..all_lines.len() {
-        let s = &all_lines[i][0];
-        let dictionary = &all_lines[i + 1];
-        println!("For s = {} dictionary = {:?} answer is {}", s, dictionary, Solution::min_malware_spread(s.clone(), dictionary.clone()));
+    let mut i = 0;
+    while i < all_lines.len() {
+        let vertices = &all_lines[i];
+        let malware = &all_lines[i + 1];
+        i += 2;
+        println!("For vertices = {:?} malware = {:?} answer is ", vertices, malware);
     }
 }
