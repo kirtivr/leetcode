@@ -4,10 +4,9 @@ use std::collections::{HashSet, HashMap};
 use std::convert::TryInto;
 
 impl Solution {
-    fn do_traversal_from(start: i32, connections: &mut HashMap<i32, Vec<i32>>) -> HashSet<i32> {
+    fn do_traversal_from(start: i32, connections: &HashMap<i32, Vec<i32>>) -> HashSet<i32> {
         let mut stk: Vec<i32> = vec![start];
         let mut out: HashSet<i32> = Default::default();
-        out.insert(start);
 
         while stk.len() > 0 {
             let top = stk.pop().unwrap();
@@ -17,21 +16,25 @@ impl Solution {
             }
 
             for node in &connections[&top] {
-                if *node != top {
+                if *node != top && !out.contains(node){
+                    out.insert(top);
                     stk.push(*node);
-                    out.insert(start);
                 }  
              }
+             //println!("stk = {:?}", stk);
         }
 
         return out;
     }
-    pub fn min_malware_spread(graph: &Vec<Vec<i32>>, initial: &Vec<i32>) -> i32 {
+    pub fn min_malware_spread(graph: Vec<Vec<i32>>, initial: Vec<i32>) -> i32 {
         let mut connections: HashMap<i32, Vec<i32>> = Default::default();
         for i in 0..graph.len() {
             for j in 0..graph[i].len() {
                 let i_32 = i.try_into().unwrap();
                 let j_32 = j.try_into().unwrap();
+                if graph[i][j] == 0 || i == j {
+                    continue;
+                }
                 if connections.contains_key(&i_32) {
                     connections.get_mut(&i_32).unwrap().push(j_32);
                 } else {
@@ -39,19 +42,33 @@ impl Solution {
                 }
             }
         }
+        println!("connections: {:?} ", connections);
 
         // Find all connected components in the graph.
         let mut connected_components: HashMap<i32, HashSet<i32>> = Default::default();
-        let mut max_components = (0, -1);
-        for start in initial {
-            let components = Self::do_traversal_from(*start, &mut connections);
-            if max_components.0 < components.len() {
-                max_components = (components.len(), *start);
+        for start in &initial {
+            let mut components = Self::do_traversal_from(*start, &connections);
+            println!("for start = {} connected = {:?}", *start, components);
+            let connected_total = components.len();
+            components.retain(|v| !initial.contains(v));
+            let connected_uninfected = components.len();
+            if connected_total == connected_uninfected {
+                components.insert(*start);
+            } else {
+                println!("for start = {} connected total = {} uninfected = {}", *start, connected_total, connected_uninfected);
             }
             connected_components.insert(*start, components);
         }
 
-        max_components.1
+        let mut max_inf = (0, i32::pow(10, 9));
+        for (start, infected) in &connected_components {
+            println!("with start = {} components: {:?}", *start, infected);
+            if infected.len() > max_inf.0 || max_inf.0 == infected.len() && max_inf.1 > *start {
+                max_inf = (infected.len(), *start);
+            }    
+        }
+
+        max_inf.1
     }
 }
 
@@ -64,16 +81,25 @@ struct FileHandler {
 }
 
 impl FileHandler {
-    fn tokenizeString(&self, s: &mut String) -> Vec<i32> {
+    fn tokenizeString(&self, s: &mut String) -> Vec<Vec<i32>> {
         // We expect a list of comma separated values.
         // println!("{}", s);
-        s.retain(|ch| ch != '[' && ch != ']' && ch != '\"' && ch != ' ');
-        let values : Vec<i32> = s.split(',').map(|x| x.parse::<i32>().unwrap()).collect();
-        // println!("values = {:?}", values);
-        values
+        s.retain(|ch| ch != '\"' && ch != ' ' && ch != '[');
+        let mut arrays: Vec<String> = s.split(']').map(|x| String::from(x)).collect();
+        arrays.retain(|group| group.len() > 0);
+        //println!("arrays = {:?} s = {:?}", arrays, s);
+        let mut out: Vec<Vec<i32>> = Default::default();
+        for a in arrays {
+            let mut values : Vec<i32> = a.split(',').map(|x| x.parse::<i32>().unwrap_or(-1)).collect();
+            values.retain(|num| *num != -1);
+            out.push(values);
+        }
+        out.retain(|group| group.len() > 0);
+        //println!("out = {:?}", out);
+        out
     }
 
-    pub fn readAndTokenizeInput(&self) -> Vec<Vec<i32>> {
+    pub fn readAndTokenizeInput(&self) -> Vec<Vec<Vec<i32>>> {
         let s : String = self.readFileContents();
 
         let mut result = Vec::new();
@@ -113,9 +139,9 @@ fn main() {
 
     let mut i = 0;
     while i < all_lines.len() {
-        let vertices = &all_lines[i];
-        let malware = &all_lines[i + 1];
+        let vertices = all_lines[i].clone();
+        let malware = all_lines[i + 1][0].clone();
         i += 2;
-        println!("For vertices = {:?} malware = {:?} answer is ", vertices, malware);
+        println!("For vertices = {:?} malware = {:?} answer is {}", vertices, malware, Solution::min_malware_spread(vertices.clone(), malware.clone()));
     }
 }
