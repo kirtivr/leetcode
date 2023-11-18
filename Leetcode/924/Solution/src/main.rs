@@ -16,7 +16,7 @@ impl Solution {
             }
 
             for node in &connections[&top] {
-                if *node != top && !out.contains(node){
+                if *node != top && !out.contains(node) && *node != start{
                     out.insert(*node);
                     stk.push(*node);
                 }  
@@ -26,16 +26,44 @@ impl Solution {
 
         return out;
     }
-    fn retain_savable_nodes(start: i32, components: &mut HashSet<i32>, infected: &Vec<i32>) {
-        let mut num_infected = 0;
-        for v in components.iter() {
-            if infected.contains(v) {
-                num_infected += 1;
+
+    fn retain_savable_nodes(connected_components: &mut HashMap<i32, HashSet<i32>>, infected: &Vec<i32>) {
+        let mut to_remove: HashMap<i32, HashSet<i32>> = Default::default();
+        let mut to_add: HashSet<i32> = Default::default();
+        for start in connected_components.keys() {
+            let mut trc: HashSet<i32> = HashSet::new();
+            for v in infected.iter() {
+                trc.insert(*v);
+            }
+            to_remove.insert(*start, trc);
+            let mut connected_and_infected: HashSet<i32> = Default::default();
+            let components: &HashSet<i32> = connected_components.get(start).unwrap();
+            for v in components.iter() {
+                if infected.contains(v) {
+                    connected_and_infected.insert(*v);
+                }
+            }
+            if connected_and_infected.len() == 0 {
+                to_add.insert(*start);
+                continue;
+            }
+
+            // Make sure any node reachable from another connected and infected node is not counted.
+            for ci in connected_and_infected.iter() {
+                if !connected_components.contains_key(ci) {
+                    continue;
+                }
+                let neighbors_of_infected = connected_components[ci].clone();
+                to_remove.get_mut(start).unwrap().extend(neighbors_of_infected);
             }
         }
-        components.retain(|v| !infected.contains(v));
-        if num_infected <= 1 {
-            components.insert(start);
+
+        for (start, removable) in to_remove.iter() {
+            connected_components.get_mut(start).unwrap().retain(|v| !removable.contains(v));
+        }
+
+        for start in to_add.iter() {
+            connected_components.get_mut(start).unwrap().insert(*start);
         }
     }
 
@@ -60,11 +88,12 @@ impl Solution {
         // Find all connected components in the graph.
         let mut connected_components: HashMap<i32, HashSet<i32>> = Default::default();
         for start in &initial {
-            let mut components = Self::do_traversal_from(*start, &connections);
-            Self::retain_savable_nodes(*start, &mut components, &initial);
+            let components = Self::do_traversal_from(*start, &connections);
             println!("for start = {} connected = {:?}", *start, components);
             connected_components.insert(*start, components);
         }
+
+        Self::retain_savable_nodes(&mut connected_components, &initial);
 
         let mut max_inf = (0, i32::pow(10, 9));
         for (start, infected) in &connected_components {
