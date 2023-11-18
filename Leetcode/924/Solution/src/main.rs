@@ -17,7 +17,7 @@ impl Solution {
 
             for node in &connections[&top] {
                 if *node != top && !out.contains(node){
-                    out.insert(top);
+                    out.insert(*node);
                     stk.push(*node);
                 }  
              }
@@ -26,6 +26,19 @@ impl Solution {
 
         return out;
     }
+    fn retain_savable_nodes(start: i32, components: &mut HashSet<i32>, infected: &Vec<i32>) {
+        let mut num_infected = 0;
+        for v in components.iter() {
+            if infected.contains(v) {
+                num_infected += 1;
+            }
+        }
+        components.retain(|v| !infected.contains(v));
+        if num_infected <= 1 {
+            components.insert(start);
+        }
+    }
+
     pub fn min_malware_spread(graph: Vec<Vec<i32>>, initial: Vec<i32>) -> i32 {
         let mut connections: HashMap<i32, Vec<i32>> = Default::default();
         for i in 0..graph.len() {
@@ -48,15 +61,8 @@ impl Solution {
         let mut connected_components: HashMap<i32, HashSet<i32>> = Default::default();
         for start in &initial {
             let mut components = Self::do_traversal_from(*start, &connections);
+            Self::retain_savable_nodes(*start, &mut components, &initial);
             println!("for start = {} connected = {:?}", *start, components);
-            let connected_total = components.len();
-            components.retain(|v| !initial.contains(v));
-            let connected_uninfected = components.len();
-            if connected_total == connected_uninfected {
-                components.insert(*start);
-            } else {
-                println!("for start = {} connected total = {} uninfected = {}", *start, connected_total, connected_uninfected);
-            }
             connected_components.insert(*start, components);
         }
 
