@@ -14,7 +14,7 @@ class SuffixNode:
         connection_key = self.getConnectionKeyFromInput(input)
         i_sz = len(connection_key)
 
-        for k, node in self.connections.values():
+        for k, node in self.connections.items():
             k_sz = len(k)
             if k_sz > i_sz:
                 continue
@@ -36,7 +36,7 @@ class SuffixNode:
     def findLongestPartialMatch(self, input):
         i_sz = len(input)
         longest_match = ''
-        for k, node in self.connections.values():
+        for k, node in self.connections.items():
             n_sz = len(k)
             overlap = k[:min(i_sz, n_sz)]
 
@@ -47,9 +47,13 @@ class SuffixNode:
         return longest_match
 
     def findMatchInNode(self, input):
+        print(f'Trying to find {input} in node {self.matched_string}')
         string_to_find = self.getConnectionKeyFromInput(input)
+        print(f'The connection key is {string_to_find}')
         matched_prefix = input[: len(input) - len(string_to_find)]
+        print(f'The matched prefix is {matched_prefix}')
         partial_match = self.findLongestPartialMatch(string_to_find)
+        print(f'Matched: {matched_prefix + partial_match}\n')
         return matched_prefix + partial_match
 
     def findMatchInTree(self, input):
@@ -104,26 +108,30 @@ class SuffixNode:
         return suffixes
     
     def __str__(self):
-        out = f'suffix : {self.matched_string} num_traversals : {self.num_traversals}'
+        out = f'\t {self.matched_string} num_traversals : {self.num_traversals}'
         for key, node in self.connections.items():
-            out += '\n\t'
-            out += str(node)
+            out += f'\n\t {key} : '
+            out += f'\n\t {str(node)}'
             out += '\n'
         return out
 
     def __repr__(self):
-        out = f'suffix : {self.matched_string} num_traversals : {self.num_traversals}'
+        out = f'\t {self.matched_string} num_traversals : {self.num_traversals}'
         for key, node in self.connections.items():
-            out += f'\n\t {key}'
-            out += str(node)
-            out += '\n'
+            out += f'\n\t {key} : '
+            out += f'\t {str(node)}'
         return out
 
 class Solution:
     def longestCommonSubpath(self, n: int, paths: List[List[int]]) -> int:
         stree = SuffixNode('')
-        path_strings = [''.join([str(node) for node in path]) for path in paths]
-        map(stree.addStringToSuffixTree, stree.getSuffixesFromString(path_strings))
+        stree.addStringToSuffixTree("uffix")
+        stree.addStringToSuffixTree("ffix")
+        stree.addStringToSuffixTree("ffix242")
+        stree.addStringToSuffixTree("ffix345234")
+        stree.findMatchInTree("ffix3476987")
+        #path_strings = [''.join([str(node) for node in path]) for path in paths]
+        #map(stree.addStringToSuffixTree, stree.getSuffixesFromString(path_strings))
         print(stree)
 
 if __name__ == '__main__':
