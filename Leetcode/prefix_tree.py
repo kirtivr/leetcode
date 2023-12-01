@@ -63,13 +63,14 @@ class PrefixTree:
         span = 1
         curr_idx = from_idx
         # Is left subtree.
-        while curr_idx % 2 == 0:
+        while curr_idx is not None and curr_idx % 2 == 0:
             curr_idx = self.parentOf(curr_idx)
             span *= 2
 
         while from_idx + span > end:
             span = span // 2
 
+        print(f'expanding right from {from_idx} with limit {end} we have range {(from_idx, from_idx + span - 1)}')
         return (from_idx, from_idx + span - 1)
 
     def isLeftSubtree(self, idx):
