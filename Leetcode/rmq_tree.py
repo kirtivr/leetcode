@@ -3,7 +3,7 @@ import pdb
 import ast
 import time
 
-class PrefixTree:
+class RMQTree:
     def isPowerOfTwo(self, num):
         return (num & (num - 1)) == 0
 
