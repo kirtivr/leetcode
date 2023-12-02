@@ -7,35 +7,38 @@ class Solution:
     def maxSumMinProduct(self, nums: List[int]) -> int:
         max_product = 0
         i = 0
-        while i < len(nums):
-            min_idx = i
-            total_sum = nums[i]
-            product = nums[min_idx] * total_sum
+        j = 1
+        min_idx = i
+        total_sum = nums[i]
+        product = nums[min_idx] * total_sum
+        if product > max_product:
+            print(f'max product is now {product} in interval ({i}, {i})')
+            max_product = product
+
+        while i < len(nums) and j >= i and j < len(nums):
+            left = nums[i]
+            right = nums[j]
+
+            total_sum += right
+            # Case where right is not suitable.
+            if right < nums[min_idx] and (j - i + 1)*(nums[min_idx] - right) > right:
+                i = j
+                j += 1
+                continue
+            elif right < nums[min_idx]:
+                min_idx = j
+
+            product = right * total_sum
             if product > max_product:
-                print(f'max product is now {product} in interval ({i}, {i})')
+                print(f'max product is now {product} in interval ({i}, {j})')
                 max_product = product
-            for j in range(i + 1, len(nums)):
-                left = nums[i]
-                right = nums[j]
 
-                total_sum += right
-                # Case where right is not suitable.
-                if right < nums[min_idx] and (j - i + 1)*(nums[min_idx] - right) > right:
-                    i = j
-                    continue
-                elif right < nums[min_idx]:
-                    min_idx = j
-
-                product = right * total_sum
-                if product > max_product:
-                    print(f'max product is now {product} in interval ({i}, {j})')
-                    max_product = product
-
-                # Case where left is not suitable.
-                if i == min_idx:
-                    new_sum = total_sum - left
-                    # Stuck. Check if we only need to track one other minimum in the sequence.
-            i += 1
+            # Case where left is not suitable.
+            if i == min_idx:
+                new_sum = total_sum - left
+                # Stuck. Check if we only need to track one other minimum in the sequence.
+            j += 1
+        i += 1
 
         return max_product
 
