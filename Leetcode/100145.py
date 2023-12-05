@@ -16,40 +16,75 @@ def make_comparator(less_than):
 
 class Solution:
     def countCompleteSubstrings(self, word: str, k: int) -> int:
-        last_seen_index = [-1 for i in range(len(word))]
+        sliding_window_length = [x * k for x in range(1, len(word)//k + 1)]
         word_breaks = {}
-        word_starts = {}
         candidates = []
-        chars_seen = {}
-        
-        for i in range(len(word)):
-            if word[i] in chars_seen:
-                last_seen_index[i] = chars_seen[word[i]]
-                chars_seen[word[i]] = i
-            else:
-                chars_seen[word[i]] = i
+        word_breaks = []
 
-        word_breaks = {}
+        prev = 0
         for i in range(1, len(word)):
             left = ord(word[i - 1])
             right = ord(word[i])
             
-            if right - left > 2:
-                word_breaks[i] = True
-        
-        for start in range(len(word)):
-            for end in range(start, len(word)):
-                if start != end and end in word_breaks:
+            if right - left > 2 or left - right > 2:
+                word_breaks.append(word[prev:i])
+                prev = i
+
+        word_breaks.append(word[prev:])
+        print(f'valid words = {word_breaks}')
+
+        for valid_word in word_breaks:
+            for window_length in sliding_window_length:
+                if window_length > len(valid_word):
+                    # All next sliding windows are larger. Try the next valid word.
                     break
-                adjusted_unique = num_unique_seen[end] - unique_upto_start
-                length = end - start + 1
-                if length == adjusted_unique * k:
-                    candidates.append([start, end])
-        print(candidates)
-        out = []
-        for candidate in candidates:
-            out.append(word[candidate[0] : candidates[1]])
-        return out
+                chars_seen_in_range = {}
+                overloaded_chars = {}
+                for start in range(len(valid_word)):
+                    end = start + window_length - 1
+                    if end > len(valid_word) - 1:
+                        break
+                    if start == 0:
+                        for i in range(window_length):
+                            ch = valid_word[i]
+                            if ch not in chars_seen_in_range:
+                                chars_seen_in_range[ch] = 1
+                            elif ch in chars_seen_in_range:
+                                if chars_seen_in_range[ch] == k:
+                                    overloaded_chars[ch] = 1
+                                elif ch in overloaded_chars:
+                                    overloaded_chars[ch] += 1
+                                chars_seen_in_range[ch] += 1
+                        if len(overloaded_chars.keys()) == 0 and len(chars_seen_in_range.keys()) * k == window_length:
+                            candidates.append(valid_word[:window_length])
+                        #continue
+                    else:
+                        left_ex_ch = valid_word[start - 1]
+                        if chars_seen_in_range[left_ex_ch] == 1:
+                            del chars_seen_in_range[left_ex_ch]
+                        else:
+                            chars_seen_in_range[left_ex_ch] -= 1
+                            if left_ex_ch in overloaded_chars:
+                                if overloaded_chars[left_ex_ch] == 1:
+                                    del overloaded_chars[left_ex_ch]
+                                else:
+                                    overloaded_chars[left_ex_ch] -= 1
+
+                        ch = valid_word[end]
+                        if ch not in chars_seen_in_range:
+                            chars_seen_in_range[ch] = 1
+                        else:
+                            if chars_seen_in_range[ch] == k:
+                                overloaded_chars[ch] = 1
+                            elif ch in overloaded_chars:
+                                overloaded_chars[ch] += 1
+                            chars_seen_in_range[ch] += 1
+
+                        if len(overloaded_chars.keys()) == 0 and len(chars_seen_in_range.keys()) * k == window_length:
+                            candidates.append(valid_word[start:end + 1])
+                    #print(f'for valid word {valid_word} substring {valid_word[start:end + 1]} chars_seen is {chars_seen_in_range} overloaded chars is {overloaded_chars} candidates is {candidates}')
+        #print(candidates)
+        return len(candidates)
 
 if __name__ == '__main__':
     x = Solution()
@@ -59,7 +94,7 @@ if __name__ == '__main__':
         #print(n)
         k = ast.literal_eval(f.readline())
         #print(edges)
-        print(x.minDistance())
+        print(x.countCompleteSubstrings(word, k))
     end = time.time()
     elapsed = end - start
     print(f'time elapsed: {elapsed}')
