@@ -16,7 +16,7 @@ def make_comparator(less_than):
 
 class Solution:
     def countCompleteSubstrings(self, word: str, k: int) -> int:
-        sliding_window_length = [x * k for x in range(1, len(word)//k + 1)]
+        sliding_window_length = [x * k for x in range(1, 27)]
         word_breaks = {}
         candidates = []
         word_breaks = []
@@ -31,7 +31,7 @@ class Solution:
                 prev = i
 
         word_breaks.append(word[prev:])
-        print(f'valid words = {word_breaks}')
+        #print(f'valid words = {word_breaks}')
 
         for valid_word in word_breaks:
             for window_length in sliding_window_length:
