@@ -10,42 +10,46 @@ class Solution:
             return -1
         
         mid = start + (end - start)//2
-        mid_sum = coin_buckets[mid][1]
-        print(f'start = {start} mid = {mid} end = {end} mid_sum = {mid_sum} target = {target}')
+        mid_val = coin_buckets[mid][1]
 
-        mid_next_sum = coin_buckets[mid + 1][1] if mid < end else None
-
-        if mid_next_sum is None:
-            if mid_sum <= target:
+        mid_next_val = coin_buckets[mid + 1][1] if mid < end else None
+        #print(f'start = {start} mid = {mid} end = {end} mid_val = {mid_val} mid_next = {mid_next_val} target = {target}')
+        if mid_next_val is None:
+            if mid_val <= target:
                 return mid
-            return -1
+            else:
+                return self.findIndexOfGreatestSmallerBucket(coin_buckets, visited_idx, target, 0, mid - 1)
 
-        if mid_next_sum > target and mid_sum <= target:
+        if mid_next_val > target and mid_val <= target:
             # Check if mid is in visited_idx. If it is, pick the next smaller element.
             while mid >= 0 and mid in visited_idx:
-                print('Invariant violated')
                 mid -= 1
             return mid
-        elif mid_next_sum <= target and mid_sum < target:
+        elif mid_next_val <= target and mid_val <= target:
             return self.findIndexOfGreatestSmallerBucket(coin_buckets, visited_idx, target, mid + 1, end)
         else:
             return self.findIndexOfGreatestSmallerBucket(coin_buckets, visited_idx, target, 0, mid - 1)
 
-    def tryToMakeTarget(self, coin_buckets, visited_idx, target) -> bool:
-        last_idx = len(coin_buckets) - 1
+    def tryToMakeTarget(self, coin_buckets, visited_idx, target, last_idx) -> bool:
         if target == 0:
             return True
         if target < 0:
             return False
-        
-        start_from = self.findIndexOfGreatestSmallerBucket(coin_buckets, visited_idx, target, 0, last_idx)
-        print(f'trying to make target {target} start_from = {start_from} value = {coin_buckets[start_from][1]}')
-        if start_from == -1:
+        if last_idx < 0:
+            return False        
+
+        start_idx = self.findIndexOfGreatestSmallerBucket(coin_buckets, visited_idx, target, 0, last_idx)
+        #print(f'trying to make target {target} greatest smaller = {start_idx} coin_buckets = {coin_buckets} value = {coin_buckets[start_idx][1]}')
+        # All elements in 'coin_buckets' are greater than target. That means we cannot make target.
+        if start_idx == -1:
             return False
-        for i in range(start_from, -1, -1):
+        for i in range(start_idx, -1, -1):
             visited_idx[i] = True
-            if self.tryToMakeTarget(coin_buckets, visited_idx, target - coin_buckets[start_from][1]):
+            # If 'start_idx' was the greatest number smaller than target.
+            # Any index which is the greatest number smaller than (target - X) is < start_idx.
+            if self.tryToMakeTarget(coin_buckets, visited_idx, target - coin_buckets[start_idx][1], start_idx - 1):
                 return True
+            visited_idx[i] = False
 
         return False
 
@@ -59,16 +63,15 @@ class Solution:
         return i
 
     def findPossibleElementToAdd(self, can_be_made, start_from):
-        available_upto = self.sequentialCount(can_be_made, start_from)
-        total = sum(i for i in range(start_from, available_upto, 1))
-        next_num = total
+        first_unavailable = self.sequentialCount(can_be_made, start_from)
+        total = sum(i for i in range(start_from, first_unavailable, 1))
         can_be_made[total] = 1
         accum_sum = total
         next_possible = total + 1
         while next_possible in can_be_made:
             accum_sum += next_possible
             next_possible = accum_sum + 1           
-        return next_num
+        return next_possible
 
     def addUntilTarget(self, coin_buckets, can_be_made, target):
         added = 0
@@ -76,25 +79,37 @@ class Solution:
         minimum = min(x[1] for x in coin_buckets)
         if minimum > 1:
             for elem in range(minimum - 1, 0, -1):
-                coin_buckets.append((len(coin_buckets), elem))
+                coin_buckets.insert(0, elem)
                 added += 1
 
         possible_missing = 1
-        while possible_missing < target:
+        print(coin_buckets)
+        total_sum_of_coins = sum(x[1] for x in coin_buckets)
+        while possible_missing <= target:
             # This is the first element that may be missing.
             possible_missing = self.findPossibleElementToAdd(can_be_made, possible_missing)
-            print(f'trying to make possibly unmakable {possible_missing}')
-            while possible_missing < target:
+            while possible_missing <= target:
                 visited_idx = {}
-                target_made = self.tryToMakeTarget(coin_buckets, visited_idx, possible_missing)
-                if not target_made:
+                print(f'possible missing {possible_missing}')
+                if possible_missing > total_sum_of_coins:
                     break
-                can_be_made[possible_missing] = 1
-                possible_missing += 1
-                while possible_missing in can_be_made:
+                else:
+                    target_made = self.tryToMakeTarget(coin_buckets, visited_idx, possible_missing, len(coin_buckets) - 1)
+                    if not target_made:
+                        print(f'\t{possible_missing} not made')
+                        break
+                    can_be_made[possible_missing] = 1
+                    total_sum_of_coins += possible_missing
                     possible_missing += 1
+                    while possible_missing in can_be_made:
+                        possible_missing += 1
+
+            if possible_missing > target:
+                break
             # possible_missing cannot be made, but every element up to possible_missing can be made.
             coin_buckets.append((len(coin_buckets), possible_missing))
+            total_sum_of_coins += possible_missing
+            coin_buckets.sort(key=lambda x: x[1])
             can_be_made[possible_missing] = 1
             added += 1
             # All elements up to "possible_missing" are available - or can be made.
