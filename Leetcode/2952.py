@@ -66,25 +66,26 @@ class Solution:
                 break
         return (i, idx)
 
-    def addUntilTarget(self, coin_buckets, can_be_made, target, sum_up_to_idx):
-        added = 0
+    def addUntilTarget(self, coin_buckets, can_be_made, target, sum_up_to_idx, total_coins):
         print(f'adding elements from 1 to {target}')
-        idx = 0
-        minimum = float("inf")
-        for i in range(len(coin_buckets)):
-            if coin_buckets[i][1] <= minimum:
-                minimum = coin_buckets[i][1]
-                idx += 1
-        if minimum > 1:
-            for elem in range(minimum - 1, 0, -1):
-                coin_buckets.insert(0, (len(coin_buckets), elem))
-                can_be_made[elem] = 1
-                added += 1
-                idx += 1
 
-        (possible_missing, idx) = self.sequentialCount(can_be_made, minimum, idx)
-        total_sum_of_coins = sum(x[1] for x in coin_buckets)
+        added = 0
+        minimum = coin_buckets[0][1]
         sum_of_added_elements = 0
+
+        for elem in range(minimum - 1, 0, -1):
+            can_be_made[elem] = 1
+            coin_buckets.insert(0, (total_coins, elem))
+            total_coins += 1
+            added += 1
+            sum_of_added_elements += elem
+
+        idx = 0
+        sum_of_added_elements += sum_up_to_idx[idx]
+        idx += 1
+        possible_missing = sum_of_added_elements + 1
+        (possible_missing, idx) = self.sequentialCount(can_be_made, possible_missing, idx)
+        total_sum_of_coins = sum(x[1] for x in coin_buckets)
 
         while possible_missing <= target:
             while possible_missing <= target:
@@ -97,16 +98,19 @@ class Solution:
                     if not target_made:
                         print(f'\t{possible_missing} not made')
                         break
-                    can_be_made[possible_missing] = 1
-                    (possible_missing, idx) = self.sequentialCount(can_be_made, possible_missing + 1, idx)
+                    if possible_missing + 1 in can_be_made:
+                        (possible_missing, idx) = self.readjustPossibleMissing(possible_missing, can_be_made, sum_up_to_idx, sum_of_added_elements)
+                    else:
+                        (possible_missing, idx) = self.sequentialCount(can_be_made, possible_missing + 1, idx)
                     continue
 
             if possible_missing > target:
                 break
             # possible_missing cannot be made, but every element up to possible_missing can be made.
-            coin_buckets.append((len(coin_buckets), possible_missing))
             total_sum_of_coins += possible_missing
-            coin_buckets.insert(idx + 1, (len(coin_buckets), possible_missing))
+            coin_buckets.append((total_coins, possible_missing))
+            total_coins += 1
+            coin_buckets.sort(key=lambda x : x[1])
             can_be_made[possible_missing] = 1
             added += 1
             sum_of_added_elements += possible_missing
@@ -120,22 +124,21 @@ class Solution:
         coin_buckets = []
         can_be_made = {}
         sum_up_to_idx = [0 for i in range(len(coins))]
-        idx = 0
+        total_coins = len(coins)
+        # Note coins is sorted so coin_buckets is also sorted.
         for i, coin in enumerate(coins):
             coin_buckets.append((i, coin))
             if coin in can_be_made:
                 can_be_made[coin] += 1
-                sum_up_to_idx[idx] += coin
             else:
                 can_be_made[coin] = 1
-                if idx == 0:
-                    sum_up_to_idx[idx] = coin
-                else:
-                    sum_up_to_idx[idx] = sum_up_to_idx[idx - 1] + coin
-                idx += 1
+            if i == 0:
+                sum_up_to_idx[i] = coin
+            else:
+                sum_up_to_idx[i] = sum_up_to_idx[i - 1] + coin
 
         print(f'initially we had coins: {coin_buckets} sum_up_to_idx = {sum_up_to_idx} and target {target}')
-        res = self.addUntilTarget(coin_buckets, can_be_made, target, sum_up_to_idx)
+        res = self.addUntilTarget(coin_buckets, can_be_made, target, sum_up_to_idx, total_coins)
         print(coin_buckets)
         return res
 
