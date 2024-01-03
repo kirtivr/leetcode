@@ -58,13 +58,11 @@ class Solution:
         curr = total_sum
         while curr < target:
             next_to_add = curr + 1
+            print(f'added {next_to_add}')
             curr = curr + next_to_add
             added += 1
         
         return added
-
-    def sumOfAllElementsUpto(self, sum_up_to_idx, elem):
-        return 0
 
     def adjustPossibleMissingBasedOnTotalSum(self, possible_missing, preceding_sum, sum_of_added_elements):
         return possible_missing + preceding_sum + sum_of_added_elements
@@ -86,20 +84,19 @@ class Solution:
         minimum = coin_buckets[0][1]
         sum_of_added_elements = 0
 
-        for elem in range(minimum - 1, 0, -1):
-            can_be_made[elem] = 1
-            coin_buckets.insert(0, (total_coins, elem))
+        if minimum > 1:
+            coin_buckets.insert(0, (total_coins, 1))
             total_coins += 1
             added += 1
-            sum_of_added_elements += elem
+            can_be_made[1] = 1
+            sum_of_added_elements += 1
 
-        idx = 0
-        possible_missing = sum_of_added_elements + sum_up_to_idx[idx] + 1
-        idx += 1
-        (possible_missing, idx) = self.sequentialCount(can_be_made, possible_missing, idx)
         total_sum_of_coins = sum(x[1] for x in coin_buckets)
+        idx = 0
+        possible_missing = 2
 
         while possible_missing <= target:
+            (possible_missing, idx) = self.sequentialCount(can_be_made, possible_missing, idx)
             # Find the next missing element to add.
             while possible_missing <= target:
                 print(f'possible missing {possible_missing}')
@@ -114,13 +111,22 @@ class Solution:
                         break
                     # What is the sum upto the next unavailable element?.
                     (possible_missing, idx) = self.sequentialCount(can_be_made, possible_missing + 1, idx)
-                    preceding_sum = sum_up_to_idx[idx]
-                    (possible_missing, idx) = self.adjustPossibleMissingBasedOnTotalSum(possible_missing, preceding_sum, sum_of_added_elements)
+                    preceding_sum = 0
+                    if len(sum_up_to_idx) > idx + 1:
+                        preceding_sum = sum_up_to_idx[idx - 1]
+                    elif idx != 0:
+                        preceding_sum = sum_up_to_idx[-1]
+                    # print(f'debug possible missing = {possible_missing} preceding sum = {preceding_sum} idx = {idx}')
+                    sum_upto = preceding_sum + sum_of_added_elements
+                    if sum_upto > possible_missing:
+                        possible_missing = sum_upto
+                    #(possible_missing, idx) = self.adjustPossibleMissingBasedOnTotalSum(possible_missing, preceding_sum, sum_of_added_elements)
 
             if possible_missing > target:
                 break
             # possible_missing cannot be made, but every element up to possible_missing can be made.
             total_sum_of_coins += possible_missing
+            print(f'added {possible_missing}')
             coin_buckets.append((total_coins, possible_missing))
             total_coins += 1
             coin_buckets.sort(key=lambda x : x[1])
@@ -128,7 +134,12 @@ class Solution:
             added += 1
             sum_of_added_elements += possible_missing
             # All elements up to "possible_missing" are available - or can be made.
-            possible_missing = sum_up_to_idx[idx] + sum_of_added_elements
+            possible_missing = sum_of_added_elements
+            if len(sum_up_to_idx) > idx + 1:
+                possible_missing += sum_up_to_idx[idx - 1]
+            elif idx != 0:
+                possible_missing += sum_up_to_idx[-1]
+            print(f'debug possible missing = {possible_missing} sum of added elems = {sum_of_added_elements}')
 
         return added
 
@@ -152,7 +163,7 @@ class Solution:
 
         print(f'initially we had coins: {coin_buckets} sum_up_to_idx = {sum_up_to_idx} and target {target}')
         res = self.addUntilTarget(coin_buckets, can_be_made, target, sum_up_to_idx, total_coins)
-        print(coin_buckets)
+        #print(coin_buckets)
         return res
 
 if __name__ == '__main__':
