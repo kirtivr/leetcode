@@ -54,8 +54,21 @@ class Solution:
         return False
 
     def sumUpAndCountFrom(self, total_sum, target):
-        return 0        
+        added = 0
+        curr = total_sum
+        while curr < target:
+            next_to_add = curr + 1
+            curr = curr + next_to_add
+            added += 1
+        
+        return added
 
+    def sumOfAllElementsUpto(self, sum_up_to_idx, elem):
+        return 0
+
+    def adjustPossibleMissingBasedOnTotalSum(self, possible_missing, preceding_sum, sum_of_added_elements):
+        return possible_missing + preceding_sum + sum_of_added_elements
+        
     def sequentialCount(self, can_be_made, start_from, idx):
         i = start_from
         while True:
@@ -81,15 +94,16 @@ class Solution:
             sum_of_added_elements += elem
 
         idx = 0
-        sum_of_added_elements += sum_up_to_idx[idx]
+        possible_missing = sum_of_added_elements + sum_up_to_idx[idx] + 1
         idx += 1
-        possible_missing = sum_of_added_elements + 1
         (possible_missing, idx) = self.sequentialCount(can_be_made, possible_missing, idx)
         total_sum_of_coins = sum(x[1] for x in coin_buckets)
 
         while possible_missing <= target:
+            # Find the next missing element to add.
             while possible_missing <= target:
                 print(f'possible missing {possible_missing}')
+                # Reduction.
                 if possible_missing > total_sum_of_coins:
                     return added + self.sumUpAndCountFrom(total_sum_of_coins, target)
                 else:
@@ -98,11 +112,10 @@ class Solution:
                     if not target_made:
                         print(f'\t{possible_missing} not made')
                         break
-                    if possible_missing + 1 in can_be_made:
-                        (possible_missing, idx) = self.readjustPossibleMissing(possible_missing, can_be_made, sum_up_to_idx, sum_of_added_elements)
-                    else:
-                        (possible_missing, idx) = self.sequentialCount(can_be_made, possible_missing + 1, idx)
-                    continue
+                    # What is the sum upto the next unavailable element?.
+                    (possible_missing, idx) = self.sequentialCount(can_be_made, possible_missing + 1, idx)
+                    preceding_sum = sum_up_to_idx[idx]
+                    (possible_missing, idx) = self.adjustPossibleMissingBasedOnTotalSum(possible_missing, preceding_sum, sum_of_added_elements)
 
             if possible_missing > target:
                 break
