@@ -19,47 +19,47 @@ class Solution:
         # This is how we get the 'span' or the range for a given element where it is the minimum.
         # Then find the product for each index, and store the maximum.
         max_product = 0
-        i = 0
-        j = 1
-        min_idx = i
-        total_sum = nums[i]
-        product = nums[min_idx] * total_sum
-        if product > max_product:
-            print(f'max product is now {product} in interval ({i}, {i})')
-            max_product = product
+        N = len(nums)
+        idx_left = [None for i in range(N)]
+        idx_right = [None for i in range(N)]
 
-        while i < len(nums) and j >= i and j < len(nums):
-            left = nums[i]
-            right = nums[j]
+        # Return the answer modulo 10^9 + 7
+        for i in range(1, N):
+            current = i
+            left = i - 1
 
-            total_sum += right
-            # Case where right is not suitable.
-            # The idea is this:
-            # We have a subarray [a, b, c, d, e, f, g, h]. c is the minimum element.
-            # The product is 8 * c.
-            # Now we added another element t.
-            # t << c.
-            # Now the product is 9 * t which is less than 8 * c.
-            if right < nums[min_idx] and (j - i + 1)*(nums[min_idx] - right) > right:
-                i = j
-                j += 1
-                continue
-            elif right < nums[min_idx]:
-                min_idx = j
+            while left is not None and nums[current] < nums[left] and left >= 0:
+                left = idx_left[left]
+            
+            if left == None or (i == 1 and nums[current] < nums[0]):
+                idx_left[i] = None
+            else:
+                idx_left[i] = left
 
-            product = right * total_sum
-            if product > max_product:
-                print(f'max product is now {product} in interval ({i}, {j})')
-                max_product = product
+        print(f'for nums {nums} idx_left is {idx_left}')
 
-            # Case where left is not suitable.
-            if i == min_idx:
-                new_sum = total_sum - left
-                # Stuck. Check if we only need to track one other minimum in the sequence.
-            j += 1
-        i += 1
+        for i in range(N - 1, 0, -1):
+            current = i - 1
+            right = i
 
-        return max_product
+            while right is not None and nums[current] < nums[right] and right <= N - 1:
+                right = idx_right[right]
+            
+            if right == None or (right == N - 1 and nums[current] < nums[right]):
+                idx_right[current] = None
+            else:
+                idx_right[current] = right
+        
+        print(f'for nums {nums} idx_right is {idx_right}')
+
+        for i in range(N):
+            left_lesser_idx = idx_left[i] + 1 if idx_left[i] is not None else 0
+            right_lesser_idx = idx_right[i] - 1 if idx_right[i] is not None else N - 1
+
+            span = right_lesser_idx - left_lesser_idx + 1
+            max_product = max(max_product, span * nums[i])
+
+        return max_product % (pow(10, 9) + 7)
 
 if __name__ == '__main__':
     x = Solution()
