@@ -28,7 +28,7 @@ class Solution:
             current = i
             left = i - 1
 
-            while left is not None and nums[current] < nums[left] and left >= 0:
+            while left is not None and nums[current] <= nums[left] and left >= 0:
                 left = idx_left[left]
             
             if left == None or (i == 1 and nums[current] < nums[0]):
@@ -42,7 +42,7 @@ class Solution:
             current = i - 1
             right = i
 
-            while right is not None and nums[current] < nums[right] and right <= N - 1:
+            while right is not None and nums[current] <= nums[right] and right <= N - 1:
                 right = idx_right[right]
             
             if right == None or (right == N - 1 and nums[current] < nums[right]):
@@ -52,12 +52,23 @@ class Solution:
         
         print(f'for nums {nums} idx_right is {idx_right}')
 
+        sum_upto = [0 for i in range(N)]
+        for i in range(N):
+            if i == 0:
+                sum_upto[i] = nums[0]
+            sum_upto[i] = sum_upto[i - 1] + nums[i]
+
         for i in range(N):
             left_lesser_idx = idx_left[i] + 1 if idx_left[i] is not None else 0
             right_lesser_idx = idx_right[i] - 1 if idx_right[i] is not None else N - 1
 
+            sum_excluding_left = sum_upto[left_lesser_idx] - nums[left_lesser_idx]
+            sum_including_right = sum_upto[right_lesser_idx]
+            sum_in_range = sum_including_right - sum_excluding_left
+
             span = right_lesser_idx - left_lesser_idx + 1
-            max_product = max(max_product, span * nums[i])
+            print(f'for idx {i} span = {span} sum_in_range = {sum_in_range}')
+            max_product = max(max_product, sum_in_range * nums[i])
 
         return max_product % (pow(10, 9) + 7)
 
