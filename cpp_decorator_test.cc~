@@ -1,0 +1,12 @@
+class Base {
+public:
+  int get_number() {
+    return 3;
+  }
+};
+
+template <typename U>
+class Decorator : public U {
+public:
+  Decorator
+};
